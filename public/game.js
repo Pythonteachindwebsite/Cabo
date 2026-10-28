@@ -1,273 +1,170 @@
 const socket = io();
-let currentScreen = 'mainMenu';
+
 let gameState = null;
-let playerName = '';
-let roomCode = '';
-let drawnCard = null;
-let selectedHandIndex = null;
+let playerIndex = null;
+let roomCode = null;
 
-const screens = {
-  mainMenu: document.getElementById('mainMenu'),
-  createRoom: document.getElementById('createRoomScreen'),
-  joinRoom: document.getElementById('joinRoomScreen'),
-  waiting: document.getElementById('waitingScreen'),
-  game: document.getElementById('gameScreen'),
-  gameEnd: document.getElementById('gameEndScreen')
-};
-
-function switchScreen(screenName) {
-  Object.values(screens).forEach(s => s.classList.remove('active'));
-  screens[screenName].classList.add('active');
-  currentScreen = screenName;
-}
-
-// 主菜單
-document.getElementById('createRoomBtn').addEventListener('click', () => {
-  switchScreen('createRoom');
+socket.on('roomCreated', (data) => {
+  playerIndex = data.playerIndex;
+  roomCode = data.roomCode;
+  document.getElementById('mainMenu').style.display = 'none';
+  document.getElementById('waitingScreen').style.display = 'block';
+  document.getElementById('roomCodeDisplay').textContent = roomCode;
+  updatePlayerList();
 });
 
-document.getElementById('joinRoomBtn').addEventListener('click', () => {
-  switchScreen('joinRoom');
+socket.on('roomJoined', (data) => {
+  playerIndex = data.playerIndex;
+  roomCode = data.roomCode;
+  document.getElementById('mainMenu').style.display = 'none';
+  document.getElementById('waitingScreen').style.display = 'block';
 });
 
-// 創建房間
-document.getElementById('confirmCreateBtn').addEventListener('click', () => {
-  const name = document.getElementById('createPlayerName').value;
+socket.on('playerListUpdated', (players) => {
+  const playerListDiv = document.getElementById('playerList');
+  playerListDiv.innerHTML = '';
+  players.forEach((p, i) => {
+    const status = p.connected ? '✓' : '✗';
+    playerListDiv.innerHTML += `<div>${i + 1}. ${p.name || '空'} ${status}</div>`;
+  });
+});
+
+socket.on('gameStarted', (data) => {
+  gameState = data.initialGameState;
+  document.getElementById('waitingScreen').style.display = 'none';
+  document.getElementById('gameBoard').style.display = 'block';
+  renderGame();
+  setTimeout(() => hideInitialCards(), 2000);
+});
+
+socket.on('gameUpdated', (data) => {
+  gameState = data.gameState;
+  renderGame();
+});
+
+socket.on('drawnCard', (data) => {
+  document.getElementById('drawnCardDisplay').innerHTML = `
+    <div class="card">${data.card.rank}${data.card.suit}</div>
+    <button onclick="swapWithHand()">替换手牌</button>
+    <button onclick="discardDrawn()">弃牌</button>
+  `;
+});
+
+socket.on('viewOwnCard', (data) => {
+  alert(`你的卡: ${data.card.rank}${data.card.suit}`);
+});
+
+socket.on('viewOpponentCard', (data) => {
+  alert(`${data.playerName}的卡: ${data.card.rank}${data.card.suit}`);
+});
+
+socket.on('pairingSuccess', (data) => {
+  if (data.playerIndex === playerIndex) {
+    alert('配对成功！卡片已移除');
+  }
+});
+
+socket.on('gameFinished', (data) => {
+  alert(`游戏结束！最终得分: ${data.finalScores.join(', ')} 赢家是玩家${data.winner + 1}`);
+  location.reload();
+});
+
+function createRoom() {
+  const name = document.getElementById('playerNameInput').value;
   if (!name) {
-    alert('請輸入玩家名稱');
+    alert('请输入玩家名称');
     return;
   }
-  playerName = name;
-  socket.emit('createRoom', name, (result) => {
-    if (result.success) {
-      roomCode = result.roomCode;
-      document.getElementById('displayRoomCode').textContent = roomCode;
-      switchScreen('waiting');
-    }
-  });
-});
+  socket.emit('createRoom', { playerName: name });
+}
 
-document.getElementById('backFromCreateBtn').addEventListener('click', () => {
-  switchScreen('mainMenu');
-});
-
-// 加入房間
-document.getElementById('confirmJoinBtn').addEventListener('click', () => {
+function joinRoom() {
   const code = document.getElementById('roomCodeInput').value;
-  const name = document.getElementById('joinPlayerName').value;
+  const name = document.getElementById('playerNameInput2').value;
   if (!code || !name) {
-    alert('請輸入房間代碼和玩家名稱');
+    alert('请输入房间代码和玩家名称');
     return;
   }
-  playerName = name;
-  roomCode = code;
-  socket.emit('joinRoom', code, name, (result) => {
-    if (result.success) {
-      document.getElementById('displayRoomCode').textContent = code;
-      switchScreen('waiting');
-    } else {
-      alert(result.message);
-    }
+  socket.emit('joinRoom', { roomCode: code, playerName: name });
+}
+
+function renderGame() {
+  const board = document.getElementById('gameBoard');
+  board.innerHTML = '<div class="game-info">';
+  board.innerHTML += `<div>轮次: ${gameState.round}/3</div>`;
+  board.innerHTML += `<div>当前玩家: ${gameState.players[gameState.currentPlayerIndex].name}</div>`;
+  board.innerHTML += '</div>';
+
+  gameState.players.forEach((player, i) => {
+    board.innerHTML += `<div class="player-section">
+      <div class="player-name">${player.name}</div>
+      <div class="player-hand">`;
+    
+    player.hand.forEach((h, j) => {
+      const isVisible = player.visible[j] || (i === playerIndex);
+      const cardDisplay = isVisible && h.faceUp ? `${h.card.rank}${h.card.suit}` : (h.card ? '🂠' : '');
+      board.innerHTML += `<div class="card ${isVisible ? 'visible' : 'hidden'}" onclick="selectCard(${i}, ${j})">${cardDisplay}</div>`;
+    });
+    
+    board.innerHTML += `</div></div>`;
   });
-});
 
-document.getElementById('backFromJoinBtn').addEventListener('click', () => {
-  switchScreen('mainMenu');
-});
+  board.innerHTML += `<div class="discard-section"><div class="discard-title">弃牌堆顶</div><div class="card">${gameState.discard.rank}${gameState.discard.suit}</div></div>`;
+  board.innerHTML += `<div id="drawnCardDisplay"></div>`;
+  board.innerHTML += `<div><button onclick="drawCard()">抽牌</button><button onclick="callCabo()">CABO</button></div>`;
+}
 
-// 等待屏幕
-document.getElementById('startGameBtn').addEventListener('click', () => {
-  socket.emit('startGame');
-});
+function hideInitialCards() {
+  gameState.players.forEach(p => {
+    p.hand.forEach((h, i) => {
+      if (i < 2) h.faceUp = false;
+    });
+  });
+  renderGame();
+}
 
-document.getElementById('leaveRoomBtn').addEventListener('click', () => {
-  socket.emit('leaveRoom');
-  switchScreen('mainMenu');
-});
-
-// 遊戲屏幕
-document.getElementById('drawBtn').addEventListener('click', () => {
-  socket.emit('drawCard');
-});
-
-document.getElementById('discardDrawnBtn').addEventListener('click', () => {
-  socket.emit('discardDrawnCard', drawnCard);
-  drawnCard = null;
-  document.getElementById('drawnCardDisplay').style.display = 'none';
-});
-
-document.getElementById('swapDrawnBtn').addEventListener('click', () => {
-  if (selectedHandIndex === null) {
-    alert('請選擇要交換的手牌');
-    return;
+function drawCard() {
+  if (gameState.currentPlayerIndex === playerIndex) {
+    socket.emit('drawCard');
   }
-  socket.emit('swapDrawnCard', selectedHandIndex, drawnCard);
-  drawnCard = null;
-  selectedHandIndex = null;
-  document.getElementById('drawnCardDisplay').style.display = 'none';
-});
+}
 
-document.getElementById('caboBtn').addEventListener('click', () => {
+function swapWithHand() {
+  const handIndex = prompt('输入手牌位置 (0-3):');
+  if (handIndex !== null) {
+    socket.emit('swapDrawnCard', { handIndex: parseInt(handIndex) });
+  }
+}
+
+function discardDrawn() {
+  socket.emit('discardDrawnCard');
+}
+
+function selectCard(playerIdx, cardIdx) {
+  if (playerIdx === playerIndex && gameState.currentPlayerIndex === playerIndex) {
+    const ability = gameState.players[playerIndex].hand[cardIdx].card.rank;
+    if (['7', '8'].includes(ability)) {
+      socket.emit('useSpecialAbility', { abilityType: '7or8', targetSlot: cardIdx });
+    } else if (['9', '10'].includes(ability)) {
+      const target = prompt('输入目标玩家 (0-3):');
+      const slot = prompt('输入卡片位置 (0-3):');
+      socket.emit('useSpecialAbility', { abilityType: '9or10', targetPlayer: parseInt(target), targetSlot: parseInt(slot) });
+    } else if (['J', 'Q'].includes(ability)) {
+      const target = prompt('输入目标玩家 (0-3):');
+      const slot = prompt('输入卡片位置 (0-3):');
+      socket.emit('useSpecialAbility', { abilityType: 'Jor Q', targetPlayer: parseInt(target), targetSlot: parseInt(slot) });
+    } else if (['K', 'A'].includes(ability)) {
+      const target = prompt('输入目标玩家 (0-3):');
+      const slot = prompt('输入卡片位置 (0-3):');
+      const swap = confirm('要交换吗?');
+      socket.emit('useSpecialAbility', { abilityType: 'Kor A', targetPlayer: parseInt(target), targetSlot: parseInt(slot), shouldSwap: swap });
+    } else {
+      socket.emit('pairingCheck', { handIndex: cardIdx });
+    }
+  }
+}
+
+function callCabo() {
   socket.emit('callCabo');
-});
-
-document.getElementById('exitGameBtn').addEventListener('click', () => {
-  socket.emit('leaveRoom');
-  switchScreen('mainMenu');
-});
-
-document.getElementById('returnToMenuBtn').addEventListener('click', () => {
-  switchScreen('mainMenu');
-});
-
-// Socket 事件
-socket.on('gameStateUpdate', (state) => {
-  gameState = state;
-  updateGameDisplay();
-});
-
-socket.on('drawnCardDisplay', (card) => {
-  drawnCard = card;
-  selectedHandIndex = null;
-  document.getElementById('drawnCardPreview').textContent = `${card.value}${card.suit}`;
-  document.getElementById('drawnCardDisplay').style.display = 'flex';
-});
-
-socket.on('playerJoined', (data) => {
-  updatePlayersList(data.players);
-});
-
-socket.on('playerLeft', (data) => {
-  updatePlayersList(data.players);
-});
-
-socket.on('cardViewed', (card) => {
-  alert(`卡牌：${card.value}${card.suit}`);
-});
-
-socket.on('selectOwnCard', () => {
-  alert('選擇一張你的卡牌來查看');
-});
-
-socket.on('selectOpponentCard', (data) => {
-  const opponentName = prompt(`選擇一名玩家：${data.players.join(', ')}`);
-  if (opponentName) {
-    const cardIndex = prompt('選擇卡牌位置 (0-3)：');
-    socket.emit('viewOpponentCard', opponentName, parseInt(cardIndex));
-  }
-});
-
-socket.on('selectOpponentSwap', (data) => {
-  const opponentName = prompt(`選擇一名對手：${data.players.join(', ')}`);
-  if (opponentName) {
-    const cardIndex = prompt('選擇對手卡牌位置 (0-3)：');
-    socket.emit('swapOpponentCard', opponentName, parseInt(cardIndex));
-  }
-});
-
-socket.on('selectOpponentPeekSwap', (data) => {
-  const opponentName = prompt(`選擇一名對手：${data.players.join(', ')}`);
-  if (opponentName) {
-    const cardIndex = prompt('選擇對手卡牌位置 (0-3)：');
-    const shouldSwap = confirm('是否交換？');
-    socket.emit('peekAndDecideSwap', opponentName, parseInt(cardIndex), shouldSwap);
-  }
-});
-
-function updatePlayersList(players) {
-  const list = document.getElementById('playersList');
-  list.innerHTML = players.map(p => `<div class="player-item">${p.name}</div>`).join('');
-}
-
-function updateGameDisplay() {
-  if (!gameState) return;
-
-  // 更新回合
-  document.getElementById('roundDisplay').textContent = gameState.round;
-
-  // 更新本玩家信息
-  const myIndex = gameState.players.findIndex(p => p.name === playerName);
-  if (myIndex !== undefined) {
-    document.getElementById('playerName').textContent = playerName;
-    document.getElementById('playerScore').textContent = `分數: ${gameState.players[myIndex].score}`;
-  }
-
-  // 更新棄牌堆
-  if (gameState.discardPile.length > 0) {
-    const topCard = gameState.discardPile[gameState.discardPile.length - 1];
-    document.getElementById('topDiscardCard').textContent = `${topCard.value}${topCard.suit}`;
-  }
-
-  // 更新牌堆計數
-  document.getElementById('deckCount').textContent = gameState.deck.length;
-
-  // 更新玩家手牌
-  if (myIndex !== undefined) {
-    const playerCards = gameState.players[myIndex].hand;
-    const visibleCards = gameState.players[myIndex].visibleCards;
-    const handContainer = document.getElementById('playerHand');
-    handContainer.innerHTML = playerCards.map((card, index) => {
-      const cardElement = document.createElement('div');
-      cardElement.className = 'card-hand';
-      
-      if (visibleCards[index] || drawnCard) {
-        cardElement.textContent = `${card.value}${card.suit}`;
-        cardElement.classList.add('visible');
-      } else {
-        cardElement.textContent = '?';
-        cardElement.classList.add('hidden');
-      }
-
-      // 如果抽了牌，允許交換
-      if (drawnCard) {
-        cardElement.addEventListener('click', () => {
-          selectedHandIndex = index;
-          document.querySelectorAll('.card-hand').forEach(c => c.classList.remove('selected'));
-          cardElement.classList.add('selected');
-        });
-      }
-
-      return cardElement;
-    }).forEach(el => handContainer.appendChild(el));
-  }
-
-  // 更新對手區域
-  const opponentsArea = document.getElementById('opponentsArea');
-  opponentsArea.innerHTML = gameState.players
-    .filter((_, i) => i !== myIndex)
-    .map((player, index) => {
-      return `
-        <div class="opponent-panel">
-          <div class="opponent-name">${player.name}</div>
-          <div class="opponent-score">分數: ${player.score}</div>
-          <div class="opponent-hand">
-            ${player.hand.map((card, cardIndex) => {
-              const visible = player.visibleCards[cardIndex];
-              return `<div class="card-opponent ${visible ? 'visible' : 'hidden'}">
-                ${visible ? `${card.value}${card.suit}` : '?'}
-              </div>`;
-            }).join('')}
-          </div>
-        </div>
-      `;
-    })
-    .join('');
-
-  // 更新抽牌按鈕
-  const isMyTurn = gameState.currentPlayerIndex === myIndex;
-  document.getElementById('drawBtn').disabled = !isMyTurn;
-
-  // 檢查遊戲是否結束
-  if (gameState.gameEnded) {
-    switchScreen('gameEnd');
-    displayFinalScores();
-  }
-}
-
-function displayFinalScores() {
-  const finalScoresDiv = document.getElementById('finalScores');
-  finalScoresDiv.innerHTML = gameState.players
-    .map(p => `<div class="score-row">${p.name}: ${p.score} 分</div>`)
-    .join('');
 }
 
