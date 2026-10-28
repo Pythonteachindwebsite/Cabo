@@ -9,295 +9,328 @@ const io = socketIo(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
+// 遊戲狀態管理
 const rooms = {};
-const playerSessions = {};
+const playerSockets = {};
 
+// 卡片初始化
 function createDeck() {
   const suits = ['♠', '♥', '♦', '♣'];
   const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
   const deck = [];
+  
   for (let suit of suits) {
     for (let rank of ranks) {
       deck.push({ rank, suit });
     }
   }
+  
   return deck.sort(() => Math.random() - 0.5);
 }
 
-function getCardValue(rank) {
-  if (rank === 'A') return 1;
-  if (rank === 'J') return 11;
-  if (rank === 'Q') return 12;
-  if (rank === 'K') return 13;
-  return parseInt(rank);
+// 計算卡片分數
+function getCardScore(card) {
+  if (card.rank === 'A') return 1;
+  if (card.rank === 'J') return 11;
+  if (card.rank === 'Q') return 12;
+  if (card.rank === 'K') {
+    return (card.suit === '♥' || card.suit === '♦') ? -1 : 13;
+  }
+  return parseInt(card.rank) || 0;
 }
 
-function initializeGame(room) {
-  room.deck = createDeck();
-  room.discard = [];
-  room.currentPlayerIndex = 0;
-  room.round = 1;
-  room.maxRounds = 3;
-  room.gameState = 'playing';
-  room.scores = [0, 0, 0, 0];
-  room.caboCalled = false;
-  room.caboPlayerIndex = -1;
+// 初始化遊戲
+function initializeGame(roomCode, players) {
+  const deck = createDeck();
+  const gameState = {
+    roomCode,
+    players: players.map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      hand: [],
+      visible: [true, true, false, false],
+      scores: [0, 0, 0, 0],
+      caboCalled: false
+    })),
+    deck,
+    discard: deck.pop(),
+    currentPlayerIndex: 0,
+    round: 1,
+    phase: 'draw',
+    drawnCard: null,
+    gameOver: false
+  };
 
+  // 給每位玩家發4張牌
   for (let i = 0; i < 4; i++) {
-    room.players[i].hand = [];
-    for (let j = 0; j < 4; j++) {
-      room.players[i].hand.push({
-        card: room.deck.pop(),
-        faceUp: j < 2
-      });
+    for (let p = 0; p < gameState.players.length; p++) {
+      gameState.players[p].hand.push({ card: gameState.deck.pop(), faceUp: gameState.players[p].visible[i] });
     }
-    room.players[i].visible = [true, true, false, false];
   }
 
-  room.discard.push(room.deck.pop());
+  return gameState;
 }
 
+// 創建房間
 io.on('connection', (socket) => {
   socket.on('createRoom', (data) => {
-    const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-    rooms[roomCode] = {
-      players: [
-        { id: socket.id, name: data.playerName, hand: [], visible: [] },
-        { id: null, name: '', hand: [], visible: [] },
-        { id: null, name: '', hand: [], visible: [] },
-        { id: null, name: '', hand: [], visible: [] }
-      ],
-      deck: [],
-      discard: [],
-      currentPlayerIndex: 0,
-      round: 1,
-      maxRounds: 3,
-      gameState: 'waiting',
-      scores: [0, 0, 0, 0],
-      caboCalled: false,
-      caboPlayerIndex: -1,
-      drawnCard: null
-    };
+    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     
-    playerSessions[socket.id] = { roomCode, playerIndex: 0 };
+    rooms[roomCode] = {
+      code: roomCode,
+      players: [{ id: socket.id, name: data.playerName, connected: true }],
+      gameStarted: false,
+      gameState: null
+    };
+
+    playerSockets[socket.id] = { roomCode, playerIndex: 0 };
     socket.join(roomCode);
+
     socket.emit('roomCreated', { roomCode, playerIndex: 0 });
-    io.to(roomCode).emit('playerListUpdated', rooms[roomCode].players.map((p, i) => ({
-      index: i,
-      name: p.name,
-      connected: p.id !== null
-    })));
+    io.to(roomCode).emit('playerListUpdated', rooms[roomCode].players);
   });
 
   socket.on('joinRoom', (data) => {
-    const { roomCode, playerName } = data;
-    const room = rooms[roomCode];
+    const room = rooms[data.roomCode];
     
     if (!room) {
-      socket.emit('error', 'Room not found');
+      socket.emit('error', '房間不存在');
       return;
     }
-    
-    let playerIndex = -1;
-    for (let i = 0; i < 4; i++) {
-      if (room.players[i].id === null) {
-        playerIndex = i;
-        break;
-      }
-    }
-    
-    if (playerIndex === -1) {
-      socket.emit('error', 'Room is full');
+
+    if (room.gameStarted) {
+      socket.emit('error', '遊戲已開始');
       return;
     }
-    
-    room.players[playerIndex] = { id: socket.id, name: playerName, hand: [], visible: [] };
-    playerSessions[socket.id] = { roomCode, playerIndex };
-    socket.join(roomCode);
-    
-    socket.emit('roomJoined', { roomCode, playerIndex });
-    io.to(roomCode).emit('playerListUpdated', room.players.map((p, i) => ({
-      index: i,
-      name: p.name,
-      connected: p.id !== null
-    })));
-    
-    const allConnected = room.players.every(p => p.id !== null);
-    if (allConnected && room.gameState === 'waiting') {
-      initializeGame(room);
-      io.to(roomCode).emit('gameStarted', { initialGameState: getGameState(roomCode) });
+
+    if (room.players.length >= 4) {
+      socket.emit('error', '房間已滿');
+      return;
     }
+
+    const playerIndex = room.players.length;
+    room.players.push({ id: socket.id, name: data.playerName, connected: true });
+    playerSockets[socket.id] = { roomCode: data.roomCode, playerIndex };
+
+    socket.join(data.roomCode);
+    socket.emit('roomJoined', { roomCode: data.roomCode, playerIndex });
+    io.to(data.roomCode).emit('playerListUpdated', room.players);
+
+    // 檢查是否可以開始（2人以上）
+    if (room.players.length >= 2) {
+      io.to(data.roomCode).emit('readyToStart', { playerCount: room.players.length });
+    }
+  });
+
+  socket.on('startGame', () => {
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    if (!room || room.players.length < 2) {
+      socket.emit('error', '玩家不足');
+      return;
+    }
+
+    room.gameStarted = true;
+    room.gameState = initializeGame(playerData.roomCode, room.players);
+    
+    io.to(playerData.roomCode).emit('gameStarted', { initialGameState: room.gameState });
   });
 
   socket.on('drawCard', () => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    
-    if (room.deck.length === 0) {
-      room.deck = room.discard.slice(0, -1).sort(() => Math.random() - 0.5);
-      room.discard = [room.discard[room.discard.length - 1]];
-    }
-    
-    room.drawnCard = room.deck.pop();
-    io.to(session.roomCode).emit('drawnCard', { card: room.drawnCard });
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+
+    if (gameState.currentPlayerIndex !== playerData.playerIndex || gameState.phase !== 'draw') return;
+
+    gameState.drawnCard = gameState.deck.pop();
+    gameState.phase = 'exchange';
+
+    io.to(playerData.roomCode).emit('drawnCard', { card: gameState.drawnCard });
+    io.to(playerData.roomCode).emit('gameUpdated', { gameState });
   });
 
   socket.on('swapDrawnCard', (data) => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    const { handIndex } = data;
-    
-    const oldCard = room.players[session.playerIndex].hand[handIndex].card;
-    room.players[session.playerIndex].hand[handIndex].card = room.drawnCard;
-    room.players[session.playerIndex].hand[handIndex].faceUp = false;
-    room.discard.push(oldCard);
-    room.drawnCard = null;
-    
-    io.to(session.roomCode).emit('gameUpdated', { gameState: getGameState(session.roomCode) });
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+    const player = gameState.players[playerData.playerIndex];
+
+    const handIndex = data.handIndex;
+    const discardedCard = player.hand[handIndex].card;
+
+    player.hand[handIndex] = { card: gameState.drawnCard, faceUp: false };
+    gameState.discard = discardedCard;
+    gameState.drawnCard = null;
+    gameState.phase = 'pairing';
+
+    io.to(playerData.roomCode).emit('gameUpdated', { gameState });
   });
 
   socket.on('discardDrawnCard', () => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    
-    room.discard.push(room.drawnCard);
-    room.drawnCard = null;
-    
-    io.to(session.roomCode).emit('gameUpdated', { gameState: getGameState(session.roomCode) });
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+
+    gameState.discard = gameState.drawnCard;
+    gameState.drawnCard = null;
+    gameState.phase = 'specialAbility';
+
+    io.to(playerData.roomCode).emit('gameUpdated', { gameState });
   });
 
   socket.on('useSpecialAbility', (data) => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    const { abilityType, targetPlayer, targetSlot, shouldSwap } = data;
-    
-    const topCard = room.discard[room.discard.length - 1];
-    
-    if (abilityType === '7or8') {
-      const card = room.players[session.playerIndex].hand[targetSlot].card;
-      socket.emit('viewOwnCard', { card });
-    }
-    
-    if (abilityType === '9or10') {
-      const card = room.players[targetPlayer].hand[targetSlot].card;
-      socket.emit('viewOpponentCard', { card, playerName: room.players[targetPlayer].name });
-    }
-    
-    if (abilityType === 'Jor Q') {
-      const oldCard = room.players[targetPlayer].hand[targetSlot].card;
-      room.players[targetPlayer].hand[targetSlot].card = topCard;
-      room.players[targetPlayer].hand[targetSlot].faceUp = false;
-      room.discard[room.discard.length - 1] = oldCard;
-    }
-    
-    if (abilityType === 'Kor A') {
-      if (shouldSwap) {
-        const oldCard = room.players[targetPlayer].hand[targetSlot].card;
-        room.players[targetPlayer].hand[targetSlot].card = topCard;
-        room.players[targetPlayer].hand[targetSlot].faceUp = false;
-        room.discard[room.discard.length - 1] = oldCard;
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+    const player = gameState.players[playerData.playerIndex];
+    const abilityRank = gameState.discard.rank;
+
+    if (['7', '8'].includes(abilityRank)) {
+      // 看自己的牌
+      const cardIndex = data.targetSlot;
+      socket.emit('viewCard', { card: player.hand[cardIndex].card });
+    } else if (['9', '10'].includes(abilityRank)) {
+      // 看對手的牌
+      const targetPlayer = gameState.players[data.targetPlayer];
+      const cardIndex = data.targetSlot;
+      socket.emit('viewCard', { card: targetPlayer.hand[cardIndex].card });
+    } else if (['J', 'Q'].includes(abilityRank)) {
+      // 盲目交換
+      const targetPlayer = gameState.players[data.targetPlayer];
+      const myCard = player.hand[data.mySlot].card;
+      const theirCard = targetPlayer.hand[data.targetSlot].card;
+
+      player.hand[data.mySlot] = { card: theirCard, faceUp: false };
+      targetPlayer.hand[data.targetSlot] = { card: myCard, faceUp: false };
+    } else if (['K', 'A'].includes(abilityRank)) {
+      // 看對手的牌後決定交換
+      const targetPlayer = gameState.players[data.targetPlayer];
+      const cardIndex = data.targetSlot;
+
+      socket.emit('viewCard', { card: targetPlayer.hand[cardIndex].card });
+
+      if (data.shouldSwap) {
+        const myCard = player.hand[data.mySlot].card;
+        const theirCard = targetPlayer.hand[cardIndex].card;
+
+        player.hand[data.mySlot] = { card: theirCard, faceUp: false };
+        targetPlayer.hand[cardIndex] = { card: myCard, faceUp: false };
       }
     }
-    
-    io.to(session.roomCode).emit('gameUpdated', { gameState: getGameState(session.roomCode) });
+
+    gameState.phase = 'pairing';
+    io.to(playerData.roomCode).emit('gameUpdated', { gameState });
   });
 
   socket.on('pairingCheck', (data) => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    const { handIndex } = data;
-    
-    const playerCard = room.players[session.playerIndex].hand[handIndex].card;
-    const topCard = room.discard[room.discard.length - 1];
-    
-    if (playerCard.rank === topCard.rank) {
-      room.players[session.playerIndex].hand[handIndex].card = null;
-      io.to(session.roomCode).emit('pairingSuccess', { playerIndex: session.playerIndex, handIndex });
-    }
-  });
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
 
-  socket.on('endTurn', () => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    
-    room.currentPlayerIndex = (room.currentPlayerIndex + 1) % 4;
-    io.to(session.roomCode).emit('gameUpdated', { gameState: getGameState(session.roomCode) });
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+    const player = gameState.players[playerData.playerIndex];
+
+    const cardRank = player.hand[data.handIndex].card.rank;
+    const discardRank = gameState.discard.rank;
+
+    if (cardRank === discardRank) {
+      player.hand[data.handIndex] = { card: null, faceUp: false };
+      io.to(playerData.roomCode).emit('pairingSuccess', { playerIndex: playerData.playerIndex });
+    }
+
+    io.to(playerData.roomCode).emit('gameUpdated', { gameState });
   });
 
   socket.on('callCabo', () => {
-    const session = playerSessions[socket.id];
-    const room = rooms[session.roomCode];
-    
-    room.caboCalled = true;
-    room.caboPlayerIndex = session.playerIndex;
-    
-    const scores = calculateRound(room);
-    room.scores = room.scores.map((s, i) => s + scores[i]);
-    
-    if (room.round < room.maxRounds) {
-      room.round++;
-      room.gameState = 'playing';
-      room.caboCalled = false;
-      initializeGame(room);
-      io.to(session.roomCode).emit('gameUpdated', { gameState: getGameState(session.roomCode) });
-    } else {
-      room.gameState = 'finished';
-      io.to(session.roomCode).emit('gameFinished', { finalScores: room.scores, winner: room.scores.indexOf(Math.min(...room.scores)) });
-    }
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+
+    gameState.players[playerData.playerIndex].caboCalled = true;
+    endRound(gameState, playerData.roomCode);
+  });
+
+  socket.on('endTurn', () => {
+    const playerData = playerSockets[socket.id];
+    if (!playerData) return;
+
+    const room = rooms[playerData.roomCode];
+    const gameState = room.gameState;
+
+    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+    gameState.phase = 'draw';
+
+    io.to(playerData.roomCode).emit('gameUpdated', { gameState });
   });
 
   socket.on('disconnect', () => {
-    const session = playerSessions[socket.id];
-    if (session) {
-      const room = rooms[session.roomCode];
+    const playerData = playerSockets[socket.id];
+    if (playerData) {
+      const room = rooms[playerData.roomCode];
       if (room) {
-        room.players[session.playerIndex].id = null;
+        const player = room.players.find(p => p.id === socket.id);
+        if (player) player.connected = false;
+        io.to(playerData.roomCode).emit('playerListUpdated', room.players);
       }
-      delete playerSessions[socket.id];
+      delete playerSockets[socket.id];
     }
   });
 });
 
-function calculateRound(room) {
-  const scores = [0, 0, 0, 0];
-  for (let i = 0; i < 4; i++) {
-    for (let card of room.players[i].hand) {
-      if (card.card) {
-        let value = getCardValue(card.card.rank);
-        if (card.card.rank === 'K' && (card.card.suit === '♥' || card.card.suit === '♦')) {
-          value = -1;
-        }
-        scores[i] += value;
+function endRound(gameState, roomCode) {
+  // 計算分數
+  gameState.players.forEach(player => {
+    let roundScore = 0;
+    player.hand.forEach(h => {
+      if (h.card) roundScore += getCardScore(h.card);
+    });
+    player.scores[gameState.round - 1] = roundScore;
+  });
+
+  gameState.round++;
+
+  if (gameState.round > 3) {
+    const finalScores = gameState.players.map(p => p.scores.reduce((a, b) => a + b, 0));
+    const winner = finalScores.indexOf(Math.min(...finalScores));
+    gameState.gameOver = true;
+    io.to(roomCode).emit('gameFinished', { finalScores, winner });
+  } else {
+    gameState.deck = createDeck();
+    gameState.discard = gameState.deck.pop();
+    gameState.currentPlayerIndex = 0;
+    gameState.phase = 'draw';
+    gameState.players.forEach(p => {
+      p.hand = [];
+      p.visible = [true, true, false, false];
+      p.caboCalled = false;
+    });
+
+    // 重新發牌
+    for (let i = 0; i < 4; i++) {
+      for (let p = 0; p < gameState.players.length; p++) {
+        gameState.players[p].hand.push({ card: gameState.deck.pop(), faceUp: gameState.players[p].visible[i] });
       }
     }
+
+    io.to(roomCode).emit('roundStarted', { gameState });
   }
-  return scores;
 }
 
-function getGameState(roomCode) {
-  const room = rooms[roomCode];
-  return {
-    players: room.players.map((p, i) => ({
-      index: i,
-      name: p.name,
-      hand: p.hand.map(h => ({
-        card: h.card,
-        faceUp: h.faceUp
-      })),
-      visible: p.visible
-    })),
-    discard: room.discard.length > 0 ? room.discard[room.discard.length - 1] : null,
-    currentPlayerIndex: room.currentPlayerIndex,
-    round: room.round,
-    scores: room.scores,
-    gameState: room.gameState,
-    drawnCard: room.drawnCard
-  };
-}
-
-server.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`CABO 遊戲服務器運行在 ${PORT}`));
 
