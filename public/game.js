@@ -1,190 +1,175 @@
 const socket = io();
-
-let currentRoom = null;
-let currentUsername = null;
+let currentRoomCode = '';
+let mySocketId = '';
 let gameState = 'menu';
-let myHand = [];
-let drawnCard = null;
-let discardTopCard = null;
+let myPlayerIndex = -1;
 
-// Screen Management
-function showScreen(screenName) {
-  document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-  document.getElementById(screenName).style.display = 'flex';
-  gameState = screenName;
-}
-
-// Main Menu
-document.getElementById('createRoomBtn').addEventListener('click', () => {
-  const username = document.getElementById('usernameInput').value.trim();
-  if (!username) {
-    alert('Please enter a username');
-    return;
-  }
-  currentUsername = username;
-  socket.emit('createRoom', username);
+socket.on('connect', () => {
+  mySocketId = socket.id;
 });
 
-document.getElementById('joinRoomBtn').addEventListener('click', () => {
-  const username = document.getElementById('usernameInput').value.trim();
-  if (!username) {
-    alert('Please enter a username');
-    return;
-  }
-  const roomCode = prompt('Enter room code:');
-  if (roomCode) {
-    currentUsername = username;
-    socket.emit('joinRoom', { roomCode, username });
-  }
-});
-
-// Room Screen
-document.getElementById('startGameBtn').addEventListener('click', () => {
-  socket.emit('startGame', currentRoom);
-});
-
-document.getElementById('leaveRoomBtn').addEventListener('click', () => {
-  socket.emit('leaveRoom', currentRoom);
-  showScreen('menu');
-  currentRoom = null;
-});
-
-// Game Screen
-document.getElementById('confirmCardsBtn').addEventListener('click', () => {
-  socket.emit('confirmCards', currentRoom);
-});
-
-document.getElementById('drawCardBtn').addEventListener('click', () => {
-  socket.emit('drawCard', currentRoom);
-});
-
-document.getElementById('caboBton').addEventListener('click', () => {
-  socket.emit('callCabo', currentRoom);
-});
-
-// Card Swapping
-function setupCardClickListeners() {
-  document.querySelectorAll('.card-slot').forEach(slot => {
-    slot.addEventListener('click', () => {
-      const position = parseInt(slot.dataset.position);
-      if (drawnCard) {
-        socket.emit('swapOrDiscard', {
-          roomCode: currentRoom,
-          action: 'swap',
-          cardPosition: position,
-          drawnCard: drawnCard
-        });
-        drawnCard = null;
-        document.getElementById('drawnCardDisplay').innerHTML = '';
-      }
-    });
-  });
-}
-
-document.getElementById('discardBtn').addEventListener('click', () => {
-  if (drawnCard) {
-    socket.emit('swapOrDiscard', {
-      roomCode: currentRoom,
-      action: 'discard',
-      cardPosition: null,
-      drawnCard: drawnCard
-    });
-    drawnCard = null;
-    document.getElementById('drawnCardDisplay').innerHTML = '';
-  }
-});
-
-// Socket Events
-socket.on('roomCreated', (data) => {
-  currentRoom = data.roomCode;
-  document.getElementById('roomCodeDisplay').textContent = data.roomCode;
-  showScreen('room');
-});
-
-socket.on('joinSuccess', (data) => {
-  currentRoom = data.roomCode;
-  document.getElementById('roomCodeDisplay').textContent = data.roomCode;
-  showScreen('room');
-});
-
-socket.on('joinError', (msg) => {
-  alert(msg);
-});
-
-socket.on('playerListUpdated', (data) => {
-  const list = document.getElementById('playerList');
-  list.innerHTML = '';
-  data.players.forEach(p => {
-    const item = document.createElement('div');
-    item.textContent = p.username;
-    list.appendChild(item);
-  });
-  const startBtn = document.getElementById('startGameBtn');
-  startBtn.disabled = data.players.length < 2;
+socket.on('playerJoined', (data) => {
+  updatePlayerList(data.players, data.count);
 });
 
 socket.on('gameStarted', (data) => {
-  myHand = data.yourHand;
-  renderInitialHand();
-  showScreen('game');
-});
-
-function renderInitialHand() {
-  const handContainer = document.getElementById('handContainer');
-  handContainer.innerHTML = '';
-  myHand.forEach((slot, i) => {
-    const div = document.createElement('div');
-    div.className = 'card-slot';
-    div.dataset.position = i;
-    const faceUpClass = slot.faceUp ? 'face-up' : 'face-down';
-    if (slot.faceUp) {
-      div.innerHTML = `<div class="card ${faceUpClass}"><span>${slot.card.rank}${slot.card.suit}</span></div>`;
-    } else {
-      div.innerHTML = `<div class="card face-down">?</div>`;
-    }
-    handContainer.appendChild(div);
-  });
-  setupCardClickListeners();
-}
-
-document.getElementById('confirmCardsBtn').addEventListener('click', () => {
-  // Flip initial cards face down after 2 seconds
+  gameState = 'confirming';
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  myPlayerIndex = data.players.findIndex(p => p.name === document.getElementById('playerName').value);
+  
+  displayMyHand(data.hand, data.faceUpCards);
   setTimeout(() => {
-    myHand.forEach(h => h.faceUp = false);
-    renderInitialHand();
-  }, 2000);
-  socket.emit('confirmCards', currentRoom);
+    revealInitialCards(data.hand, data.faceUpCards);
+  }, 100);
 });
 
-socket.on('gameReady', (data) => {
-  discardTopCard = data.discardTop;
-  document.getElementById('discardPile').innerHTML = `<div class="card"><span>${data.discardTop.rank}${data.discardTop.suit}</span></div>`;
-  document.getElementById('currentPlayerDisplay').textContent = `Current: ${data.currentPlayer}`;
+socket.on('allPlayersConfirmed', (data) => {
+  gameState = 'playing';
+  document.getElementById('confirmBtn').style.display = 'none';
+  document.getElementById('gameControls').style.display = 'block';
+  updateGameDisplay(data);
 });
 
 socket.on('cardDrawn', (data) => {
-  drawnCard = data.card;
-  document.getElementById('drawnCardDisplay').innerHTML = `<div class="card"><span>${drawnCard.rank}${drawnCard.suit}</span></div>`;
-  document.getElementById('drawCardBtn').disabled = true;
+  if (data.playerSocketId === mySocketId) {
+    displayDrawnCard(data.card);
+  }
 });
 
-socket.on('gameUpdated', (data) => {
-  discardTopCard = data.discardTop;
-  document.getElementById('discardPile').innerHTML = `<div class="card"><span>${data.discardTop.rank}${data.discardTop.suit}</span></div>`;
-  document.getElementById('drawnCardDisplay').innerHTML = '';
-  document.getElementById('drawCardBtn').disabled = false;
-  drawnCard = null;
+socket.on('cardDiscarded', (data) => {
+  updateMyHand(data.hand);
+  updateDiscardPile(data.discardTop);
+});
+
+socket.on('turnChanged', (data) => {
+  document.getElementById('currentPlayer').textContent = data.currentPlayerName;
+  if (myPlayerIndex !== data.currentTurnIndex) {
+    document.getElementById('gameControls').style.display = 'none';
+  } else {
+    document.getElementById('gameControls').style.display = 'block';
+  }
+});
+
+socket.on('CABOCalled', (data) => {
+  alert(data.playerName + ' called CABO!');
+});
+
+socket.on('roundEnded', (data) => {
+  displayScores(data.scores);
+  if (data.nextRound) {
+    gameState = 'confirming';
+    socket.emit('startGame', currentRoomCode);
+  }
 });
 
 socket.on('gameEnded', (data) => {
-  let scoreText = `CABO called by: ${data.caboCaller}\n\nScores:\n`;
-  data.scores.forEach(s => {
-    scoreText += `${s.username}: ${s.score}\n`;
-  });
-  alert(scoreText);
-  showScreen('menu');
-  currentRoom = null;
+  alert('Game Over! ' + data.winner + ' wins!\nFinal Scores:\n' + 
+    data.scores.map(s => s.name + ': ' + s.totalScore).join('\n'));
+  gameState = 'menu';
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('menu').style.display = 'block';
 });
 
-socket.on('error', (msg) => alert(msg));
+function displayMyHand(hand, faceUpCards) {
+  const handDisplay = document.getElementById('myHand');
+  handDisplay.innerHTML = '';
+  hand.forEach((card, index) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card';
+    if (faceUpCards[index]) {
+      cardEl.textContent = card.rank + card.suit;
+    } else {
+      cardEl.textContent = '?';
+    }
+    cardEl.id = 'card-' + index;
+    handDisplay.appendChild(cardEl);
+  });
+}
+
+function revealInitialCards(hand, faceUpCards) {
+  faceUpCards.forEach((isFaceUp, index) => {
+    if (isFaceUp) {
+      document.getElementById('card-' + index).textContent = hand[index].rank + hand[index].suit;
+    }
+  });
+  
+  setTimeout(() => {
+    faceUpCards.forEach((isFaceUp, index) => {
+      if (isFaceUp) {
+        document.getElementById('card-' + index).textContent = '?';
+      }
+    });
+  }, 2000);
+}
+
+function displayDrawnCard(card) {
+  document.getElementById('drawnCard').textContent = card.rank + card.suit;
+  document.getElementById('drawnCard').style.display = 'block';
+}
+
+function updateMyHand(hand) {
+  const handDisplay = document.getElementById('myHand');
+  handDisplay.innerHTML = '';
+  hand.forEach((card, index) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card';
+    cardEl.textContent = '?';
+    cardEl.id = 'card-' + index;
+    handDisplay.appendChild(cardEl);
+  });
+}
+
+function updateDiscardPile(card) {
+  document.getElementById('discardTop').textContent = card.rank + card.suit;
+}
+
+function updateGameDisplay(data) {
+  document.getElementById('currentPlayer').textContent = data.currentPlayerName;
+  updateDiscardPile(data.discardTop);
+}
+
+function updatePlayerList(players, count) {
+  const list = document.getElementById('playerList');
+  list.innerHTML = players.map(p => '<div>' + p.name + '</div>').join('');
+  document.getElementById('playerCount').textContent = count + '/4';
+}
+
+function displayScores(scores) {
+  alert('Round Scores:\n' + scores.map(s => s.name + ': ' + s.roundScore + ' (Total: ' + s.totalScore + ')').join('\n'));
+}
+
+document.getElementById('createRoomBtn').addEventListener('click', () => {
+  const playerName = document.getElementById('playerName').value;
+  const roomCode = document.getElementById('roomCode').value || Math.random().toString(36).substr(2, 6);
+  currentRoomCode = roomCode;
+  socket.emit('createRoom', roomCode, playerName);
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('waitingRoom').style.display = 'block';
+});
+
+document.getElementById('startGameBtn').addEventListener('click', () => {
+  socket.emit('startGame', currentRoomCode);
+});
+
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  socket.emit('confirmCards', currentRoomCode);
+});
+
+document.getElementById('drawBtn').addEventListener('click', () => {
+  socket.emit('drawCard', currentRoomCode);
+});
+
+document.getElementById('discardBtn').addEventListener('click', () => {
+  const cardIndex = prompt('Card index to discard (0-3):');
+  socket.emit('discardCard', currentRoomCode, parseInt(cardIndex), -1);
+});
+
+document.getElementById('callCABOBtn').addEventListener('click', () => {
+  socket.emit('callCABO', currentRoomCode);
+});
+
+document.getElementById('endTurnBtn').addEventListener('click', () => {
+  socket.emit('endTurn', currentRoomCode);
+});
 
