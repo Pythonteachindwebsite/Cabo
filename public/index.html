@@ -1,63 +1,252 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CABO 紙牌遊戲</title>
-  <link rel="stylesheet" href="style.css">
+  <title>CABO Card Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      max-width: 600px;
+      width: 100%;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+    }
+    
+    #joinSection {
+      display: block;
+    }
+    
+    #roomSection {
+      display: none;
+    }
+    
+    #gameContainer {
+      display: none;
+    }
+    
+    .input-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: bold;
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s;
+    }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    button:hover {
+      background: #764ba2;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .info-box {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    #roomCodeDisplay {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #667eea;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    #playersList {
+      background: #e8eef7;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      min-height: 100px;
+      color: #333;
+    }
+    
+    #playersList div {
+      padding: 8px;
+      margin: 5px 0;
+      background: white;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    
+    #messageDisplay {
+      text-align: center;
+      font-size: 1.2em;
+      color: #667eea;
+      margin-bottom: 20px;
+      font-weight: bold;
+      min-height: 30px;
+    }
+    
+    #handDisplay {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .card {
+      width: 80px;
+      height: 120px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.5em;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 2px solid white;
+    }
+    
+    .card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    #opponentDisplay {
+      display: flex;
+      justify-content: space-around;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .opponent {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 120px;
+    }
+    
+    .opponent .card {
+      width: 40px;
+      height: 60px;
+      font-size: 0.8em;
+      cursor: default;
+    }
+    
+    .opponent .card:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  </style>
 </head>
 <body>
-  <div id="mainMenu" class="container">
-    <h1>CABO 紙牌遊戲</h1>
-    <input type="text" id="playerName" placeholder="輸入你的名字" maxlength="20">
-    <button onclick="createRoom()">建立房間</button>
-    <button onclick="showJoinRoom()">加入房間</button>
+  <div class="container">
+    <h1>🃏 CABO</h1>
+    
+    <!-- Join Section -->
+    <div id="joinSection">
+      <div class="input-group">
+        <label for="playerNameInput">Your Name:</label>
+        <input type="text" id="playerNameInput" placeholder="Enter your name">
+      </div>
+      
+      <button id="createRoomBtn">Create Room</button>
+      
+      <div style="text-align: center; margin: 20px 0; color: #999;">OR</div>
+      
+      <div class="input-group">
+        <label for="roomCodeInput">Room Code:</label>
+        <input type="text" id="roomCodeInput" placeholder="Enter room code">
+      </div>
+      
+      <button id="joinRoomBtn">Join Room</button>
+    </div>
+    
+    <!-- Room Section -->
+    <div id="roomSection">
+      <div id="roomCodeDisplay"></div>
+      
+      <div class="info-box">
+        <strong>Players:</strong>
+      </div>
+      <div id="playersList"></div>
+      
+      <button id="startGameBtn" disabled>Start Game (Waiting for 4 players...)</button>
+    </div>
+    
+    <!-- Game Section -->
+    <div id="gameContainer">
+      <div id="messageDisplay"></div>
+      
+      <div class="info-box">
+        <strong>Opponents:</strong>
+      </div>
+      <div id="opponentDisplay"></div>
+      
+      <div class="info-box">
+        <strong>Your Hand:</strong>
+      </div>
+      <div id="handDisplay"></div>
+    </div>
   </div>
-
-  <div id="joinRoomMenu" class="container hidden">
-    <h1>加入房間</h1>
-    <input type="text" id="roomCode" placeholder="房間代碼">
-    <input type="text" id="playerNameJoin" placeholder="你的名字">
-    <button onclick="joinRoom()">加入</button>
-    <button onclick="backToMenu()">返回</button>
-  </div>
-
-  <div id="waitingRoom" class="container hidden">
-    <h1>房間: <span id="roomCodeDisplay"></span></h1>
-    <div id="playerList"></div>
-    <button id="startButton" onclick="startGame()" disabled>開始遊戲</button>
-    <button onclick="leaveRoom()">離開</button>
-  </div>
-
-  <div id="gameScreen" class="container hidden">
-    <div class="info-bar">
-      <span>回合 <span id="roundNumber">1</span></span>
-      <span>輪到: <span id="currentPlayer"></span></span>
-      <span>牌堆剩: <span id="deckCount">0</span></span>
-    </div>
-
-    <div class="discard-area">
-      <div>棄牌堆頂: <span id="discardTop">-</span></div>
-    </div>
-
-    <div class="action-buttons">
-      <button id="drawButton" onclick="drawFromDeck()">從牌堆抽牌</button>
-      <button id="discardButton" onclick="discardCard()" disabled>棄掉抽到的牌</button>
-    </div>
-
-    <div class="my-cards">
-      <h3>我的牌</h3>
-      <div id="cardGrid" class="card-grid"></div>
-    </div>
-
-    <div class="action-buttons">
-      <button id="endTurnButton" onclick="endTurn()">結束回合</button>
-      <button onclick="leaveRoom()">離開遊戲</button>
-    </div>
-  </div>
-
-  <script src="socket.io/socket.io.js"></script>
-  <script src="game.js"></script>
-</body>
-</html>
+  
+  <script src="https生成。確保實現了所有確認的遊戲規則。
 
