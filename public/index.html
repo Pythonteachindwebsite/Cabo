@@ -1,60 +1,54 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cabo 紙牌遊戲</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cabo 卡牌遊戲</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 房間選擇頁面 -->
-    <div id="roomSelectPage" class="page">
-        <div class="room-select-container">
-            <h1>🎮 Cabo 遊戲</h1>
-            <p>選擇進入方式：</p>
-            
-            <button id="createRoomBtn" class="btn btn-primary">建立新房間</button>
-            <button id="joinRoomBtn" class="btn btn-secondary">加入現有房間</button>
-        </div>
+  <!-- 主畫面 -->
+  <div id="mainMenu" class="screen active">
+    <div class="menu-container">
+      <h1>🎴 Cabo</h1>
+      <input type="text" id="playerName" placeholder="輸入你的名字" maxlength="15">
+      <button id="createBtn" class="btn btn-primary">建立房間</button>
+      <button id="joinBtn" class="btn btn-secondary">加入房間</button>
     </div>
+  </div>
 
-    <!-- 加入房間頁面 -->
-    <div id="joinRoomPage" class="page hidden">
-        <div class="room-select-container">
-            <h1>🎮 加入房間</h1>
-            <input type="text" id="roomIdInput" placeholder="輸入房間ID" maxlength="20">
-            <input type="text" id="playerNameInput" placeholder="輸入你的名字" maxlength="20">
-            
-            <button id="joinConfirmBtn" class="btn btn-primary">確認加入</button>
-            <button id="backBtn1" class="btn btn-secondary">返回</button>
-        </div>
+  <!-- 加入房間畫面 -->
+  <div id="joinMenu" class="screen">
+    <div class="menu-container">
+      <h2>加入房間</h2>
+      <input type="text" id="roomIdInput" placeholder="輸入房間代碼" maxlength="6">
+      <button id="confirmJoinBtn" class="btn btn-primary">確認</button>
+      <button id="backBtn" class="btn btn-secondary">返回</button>
     </div>
+  </div>
 
-    <!-- 等待玩家頁面 -->
-    <div id="waitingPage" class="page hidden">
-        <div class="waiting-container">
-            <h2>房間已建立！</h2>
-            <p>房間ID：<strong id="displayRoomId"></strong></p>
-            <button id="copyRoomIdBtn" class="btn btn-copy">複製房間ID</button>
-            
-            <h3>等待玩家加入...</h3>
-            <div id="playersList" class="players-list"></div>
-            
-            <p id="playerCountText">玩家數量：0/4</p>
-            <button id="startGameBtn" class="btn btn-primary" disabled>開始遊戲（需要2-4人）</button>
-            <button id="backBtn2" class="btn btn-secondary">返回</button>
-        </div>
+  <!-- 等待房間畫面 -->
+  <div id="waitingRoom" class="screen">
+    <div class="waiting-container">
+      <h2>房間代碼: <span id="roomCode"></span></h2>
+      <div class="players-list">
+        <h3>遊戲玩家 (<span id="playerCount">0</span>/4):</h3>
+        <ul id="playersList"></ul>
+      </div>
+      <button id="startBtn" class="btn btn-primary">開始遊戲</button>
+      <button id="exitBtn" class="btn btn-secondary">退出</button>
     </div>
+  </div>
 
-    <!-- 遊戲頁面 -->
-    <div id="gamePage" class="page hidden">
-        <div class="game-container">
-            <h2 id="gameTitle">Cabo 遊戲</h2>
-            <div id="gameContent"></div>
-        </div>
+  <!-- 遊戲畫面 -->
+  <div id="gameScreen" class="screen">
+    <div class="game-container">
+      <h2>遊戲進行中...</h2>
+      <p id="gameStatus">等待所有玩家準備</p>
     </div>
+  </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="game.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
