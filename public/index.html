@@ -1,84 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CABO</title>
+  <title>CABO 遊戲</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Setup Screen -->
-  <div id="setupScreen" class="screen active">
+  <!-- 加入房間畫面 -->
+  <div id="joinScreen" class="screen">
     <div class="container">
-      <h1>CABO</h1>
-      
-      <div class="tab-buttons">
-        <button class="tab-btn active" onclick="switchTab('create')">Create Room</button>
-        <button class="tab-btn" onclick="switchTab('join')">Join Room</button>
+      <h1>CABO 遊戲</h1>
+      <input type="text" id="playerName" placeholder="輸入玩家名稱" />
+      <div class="buttonGroup">
+        <button id="createRoom" class="btn btn-primary">創建房間</button>
+        <button id="joinRoom" class="btn btn-secondary">加入房間</button>
       </div>
-
-      <div id="createTab" class="tab-content active">
-        <input id="playerNameInput" type="text" placeholder="Your name" />
-        <button onclick="createRoom()">Create Room</button>
-      </div>
-
-      <div id="joinTab" class="tab-content">
-        <input id="roomCodeInput" type="text" placeholder="Room code" />
-        <input id="playerNameInput2" type="text" placeholder="Your name" />
-        <button onclick="joinRoom()">Join Room</button>
+      <input type="text" id="roomId" placeholder="輸入房間代碼" style="display: none;" />
+      <div id="joinRoomInput" style="display: none;">
+        <input type="text" id="roomId" placeholder="輸入房間代碼" />
       </div>
     </div>
   </div>
 
-  <!-- Lobby Screen -->
-  <div id="lobbyScreen" class="screen">
+  <!-- 遊戲畫面 -->
+  <div id="gameScreen" class="screen" style="display: none;">
     <div class="container">
-      <h2>Room: <span id="roomCode"></span></h2>
-      <h3>Players:</h3>
+      <h1 id="roomCode">房間代碼: </h1>
+      <h3>玩家列表:</h3>
       <ul id="playerList"></ul>
-      <button onclick="startGame()" class="start-btn">Start Game</button>
+      <button id="startGame" class="btn btn-primary">開始遊戲</button>
+      <button id="leaveRoom" class="btn btn-danger">離開房間</button>
+
+      <div id="gameArea" style="display: none;">
+        <div id="currentPlayer"></div>
+        <div id="discardPile" class="discardPile"></div>
+        <button id="drawCard" class="btn btn-primary">抽牌</button>
+        <button onclick="callCable()" class="btn btn-warning">呼喚 CABLE</button>
+        <div id="handsDisplay"></div>
+      </div>
     </div>
   </div>
 
-  <!-- Game Screen -->
-  <div id="gameScreen" class="screen">
-    <div class="top-section">
-      <div class="info-box">
-        <p>Current Player: <strong id="currentPlayer"></strong></p>
-      </div>
-      <div class="info-box">
-        <p>Discard Pile Top: <span id="discardTop">-</span></p>
-      </div>
-    </div>
-
-    <div id="drawnCard" class="drawn-card" style="display:none;">
-      <p>Your Drawn Card:</p>
-      <div id="drawnCardDisplay" class="card"></div>
-    </div>
-
-    <div id="handsContainer" class="hands-container"></div>
-
-    <div class="actions">
-      <button onclick="drawCard()">Draw Card</button>
-      <button onclick="discardDrawn()">Discard</button>
-      <button onclick="endTurn()">End Turn</button>
-      <button onclick="callCabo()">Call CABO</button>
-    </div>
-
-    <div id="gameLog" class="game-log"></div>
-  </div>
-
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <script src="game.js"></script>
-  
-  <script>
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById(tab + 'Tab').classList.add('active');
-      document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add('active');
-    }
-  </script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/game.js"></script>
 </body>
 </html>
 
