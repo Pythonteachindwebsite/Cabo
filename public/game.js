@@ -1,162 +1,144 @@
 const socket = io();
-let roomCode = '';
-let playerIndex = -1;
-let gameState = null;
-let allHands = [];
-let waitingForExchange = false;
+let currentRoom = null;
+let playerName = '';
+let playerIndex = null;
 
-// DOM Elements
-const roomCodeDisplay = document.getElementById('roomCodeDisplay');
-const playersListDisplay = document.getElementById('playersList');
-const gameContainer = document.getElementById('gameContainer');
-const startGameBtn = document.getElementById('startGameBtn');
-const handDisplay = document.getElementById('handDisplay');
-const messageDisplay = document.getElementById('messageDisplay');
-const opponentDisplay = document.getElementById('opponentDisplay');
-
-// Create Room
-document.getElementById('createRoomBtn').addEventListener('click', () => {
-  const playerName = document.getElementById('playerNameInput').value.trim();
+function createRoom() {
+  playerName = document.getElementById('playerName').value.trim();
   if (!playerName) {
-    alert('Please enter your name');
+    alert('請輸入名字');
     return;
   }
-  
-  socket.emit('createRoom', playerName, (code) => {
-    roomCode = code;
-    roomCodeDisplay.textContent = `Room Code: ${roomCode}`;
-    document.getElementById('joinSection').style.display = 'none';
-    document.getElementById('roomSection').style.display = 'block';
-  });
-});
+  socket.emit('createRoom', playerName);
+}
 
-// Join Room
-document.getElementById('joinRoomBtn').addEventListener('click', () => {
-  const playerName = document.getElementById('playerNameInput').value.trim();
-  const inputRoomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-  
-  if (!playerName || !inputRoomCode) {
-    alert('Please enter your name and room code');
+function showJoinRoom() {
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('joinRoomScreen').style.display = 'block';
+}
+
+function backToMain() {
+  document.getElementById('joinRoomScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display = 'block';
+}
+
+function joinRoom() {
+  playerName = document.getElementById('joinPlayerName').value.trim();
+  const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (!playerName || !roomCode) {
+    alert('請輸入名字和房間代碼');
     return;
   }
-  
-  socket.emit('joinRoom', inputRoomCode, playerName, (result) => {
-    if (result.success) {
-      roomCode = inputRoomCode;
-      roomCodeDisplay.textContent = `Room Code: ${roomCode}`;
-      document.getElementById('joinSection').style.display = 'none';
-      document.getElementById('roomSection').style.display = 'block';
-    } else {
-      alert(result.message);
-    }
+  socket.emit('joinRoom', { roomCode, playerName });
+}
+
+function startGame() {
+  socket.emit('startGame', currentRoom);
+}
+
+function drawCard() {
+  socket.emit('drawCard', currentRoom);
+}
+
+function swapCard(handIndex) {
+  socket.emit('swapCard', { roomCode: currentRoom, handIndex });
+}
+
+function callCabo() {
+  socket.emit('callCabo', currentRoom);
+}
+
+function leaveRoom() {
+  socket.emit('leaveRoom', currentRoom);
+  currentRoom = null;
+  playerIndex = null;
+  document.getElementById('mainScreen').style.display = 'block';
+  document.getElementById('lobbyScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'none';
+}
+
+socket.on('roomCreated', (data) => {
+  currentRoom = data.roomCode;
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('lobbyScreen').style.display = 'block';
+  document.getElementById('roomCode').textContent = data.roomCode;
+});
+
+socket.on('joinedRoom', (data) => {
+  currentRoom = data.roomCode;
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('joinRoomScreen').style.display = 'none';
+  document.getElementById('lobbyScreen').style.display = 'block';
+  document.getElementById('roomCode').textContent = data.roomCode;
+});
+
+socket.on('updatePlayers', (players) => {
+  const playerList = document.getElementById('playerList');
+  playerList.innerHTML = '';
+  players.forEach(p => {
+    const playerDiv = document.createElement('div');
+    playerDiv.textContent = p.name;
+    playerList.appendChild(playerDiv);
   });
+  const startBtn = document.getElementById('startBtn');
+  if (players[0].id === socket.id && players.length >= 2) {
+    startBtn.style.display = 'block';
+  }
 });
 
-// Start Game
-startGameBtn.addEventListener('click', () => {
-  socket.emit('startGame', roomCode);
+socket.on('gameStarted', (data) => {
+  document.getElementById('lobbyScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'block';
+  document.getElementById('currentTurn').textContent = `當前玩家：${data.currentPlayer}`;
 });
 
-// Socket Events
-socket.on('playersUpdated', (players) => {
-  playersListDisplay.innerHTML = players.map((p) => `<div>${p.name}</div>`).join('');
-  startGameBtn.disabled = players.length < 4;
-});
-
-socket.on('gameInitialized', (data) => {
-  playerIndex = data.playerIndex;
-  gameState = data.gameState;
-  allHands = data.allHands;
-  
-  document.getElementById('roomSection').style.display = 'none';
-  gameContainer.style.display = 'block';
-  
-  renderHand();
-  renderOpponents();
-});
-
-socket.on('gameState', (data) => {
-  gameState = data.gameState;
-  allHands = data.allHands;
-  playerIndex = data.playerIndex;
-  
-  renderHand();
-  renderOpponents();
-  updateMessage();
+socket.on('updateHands', (hands) => {
+  const handDisplay = document.getElementById('handDisplay');
+  handDisplay.innerHTML = '';
+  hands.forEach(({ playerIndex: idx, hand }) => {
+    const handDiv = document.createElement('div');
+    handDiv.className = 'player-hand';
+    handDiv.innerHTML = `<h4>玩家 ${idx + 1} 的手牌</h4>`;
+    hand.forEach((cardObj, cardIndex) => {
+      const cardDiv = document.createElement('div');
+      cardDiv.className = 'card';
+      if (cardObj.isVisible) {
+        cardDiv.textContent = cardObj.card.rank + cardObj.card.suit;
+        cardDiv.classList.add('visible');
+      } else {
+        cardDiv.textContent = '?';
+        cardDiv.classList.add('facedown');
+      }
+      if (playerIndex === idx) {
+        cardDiv.onclick = () => swapCard(cardIndex);
+      }
+      handDiv.appendChild(cardDiv);
+    });
+    handDisplay.appendChild(handDiv);
+  });
 });
 
 socket.on('cardDrawn', (data) => {
-  messageDisplay.textContent = `${socket.id === data.playerIndex ? 'You drew' : 'Player drew'}: ${data.drawnCard.value}`;
-  
-  if (data.playerIndex === playerIndex) {
-    showCardSelectionPrompt(data.drawnCard);
-  }
+  console.log(`${data.playerName} 抽到了 ${data.card.rank}${data.card.suit}`);
 });
 
-socket.on('abilityView', (data) => {
-  const cardsText = data.cards.map((c) => c.value || 'Empty').join(', ');
-  alert(`${data.message}\nCards: ${cardsText}`);
+socket.on('cardSwapped', (data) => {
+  console.log(`${data.playerName} 交換了卡牌`);
+});
+
+socket.on('turnChanged', (data) => {
+  document.getElementById('currentTurn').textContent = `當前玩家：${data.currentPlayer}`;
+});
+
+socket.on('caboround', (data) => {
+  alert(data.message || data.playerName + ' ' + (data.message || '喊了 CABO'));
 });
 
 socket.on('roundEnded', (data) => {
-  alert(`Round Ended!\nScores: ${data.scores.join(', ')}`);
+  alert(`第 ${data.round} 輪結束！贏家是 ${data.winner}`);
 });
 
-socket.on('gameOver', (data) => {
-  const winner = data.scores.indexOf(Math.min(...data.scores));
-  alert(`Game Over! Winner: Player ${winner + 1}`);
+socket.on('error', (message) => {
+  alert('錯誤：' + message);
 });
-
-// Render hand
-function renderHand() {
-  if (playerIndex < 0 || !allHands[playerIndex]) return;
-  
-  const hand = allHands[playerIndex];
-  handDisplay.innerHTML = hand.map((card, idx) => {
-    const display = card.faceUp ? card.value : '?';
-    return `<div class="card" onclick="selectCard(${idx})">${display}</div>`;
-  }).join('');
-}
-
-// Render opponents
-function renderOpponents() {
-  opponentDisplay.innerHTML = '';
-  
-  allHands.forEach((hand, idx) => {
-    if (idx === playerIndex) return;
-    
-    const opponentDiv = document.createElement('div');
-    opponentDiv.className = 'opponent';
-    opponentDiv.innerHTML = hand.map((card) => {
-      const display = card.faceUp ? card.value : '?';
-      return `<div class="card">${display}</div>`;
-    }).join('');
-    
-    opponentDisplay.appendChild(opponentDiv);
-  });
-}
-
-// Select card for exchange
-function selectCard(slot) {
-  if (waitingForExchange) {
-    socket.emit('exchangeCard', slot);
-    waitingForExchange = false;
-  }
-}
-
-// Show card selection prompt
-function showCardSelectionPrompt(drawnCard) {
-  messageDisplay.textContent = `You drew ${drawnCard.value}. Select a card to exchange.`;
-  waitingForExchange = true;
-}
-
-// Update message
-function updateMessage() {
-  if (gameState.phase === 'viewing') {
-    messageDisplay.textContent = 'Viewing your cards...';
-  } else if (gameState.phase === 'playing') {
-    const currentPlayer = gameState.currentPlayerIndex;
-    messageDisplay.textContent = currentPlayer === playerIndex ? 'Your turn!' : `Waiting for Player ${currentPlayer + 1}...`;
-  }
-}
 
