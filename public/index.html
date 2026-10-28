@@ -1,36 +1,60 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <title>CABO</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CABO 紙牌遊戲</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1><img src="/IMG_0872.jpeg" alt=""> CABO</h1>
+  <div id="mainMenu" class="container">
+    <h1>CABO 紙牌遊戲</h1>
+    <input type="text" id="playerName" placeholder="輸入你的名字" maxlength="20">
+    <button onclick="createRoom()">建立房間</button>
+    <button onclick="showJoinRoom()">加入房間</button>
+  </div>
 
-    <div id="joinSection">
-      <input type="text" id="playerNameInput" placeholder="Your name">
-      <input type="text" id="roomCodeInput" placeholder="Room code (to join)">
-      <button onclick="createRoom()">Create Room</button>
-      <button onclick="joinRoom()">Join Room</button>
+  <div id="joinRoomMenu" class="container hidden">
+    <h1>加入房間</h1>
+    <input type="text" id="roomCode" placeholder="輸入房間代碼">
+    <input type="text" id="playerNameJoin" placeholder="輸入你的名字">
+    <button onclick="joinRoom()">加入</button>
+    <button onclick="backToMenu()">返回</button>
+  </div>
+
+  <div id="waitingRoom" class="container hidden">
+    <h1>房間代碼: <span id="roomCodeDisplay"></span></h1>
+    <div id="playerList"></div>
+    <button id="startButton" onclick="startGame()" disabled>開始遊戲</button>
+    <button onclick="leaveRoom()">離開房間</button>
+  </div>
+
+  <div id="gameScreen" class="container hidden">
+    <div class="game-info">
+      <div>回合: <span id="roundNumber"></span></div>
+      <div>現在輪到: <span id="currentPlayer"></span></div>
+    </div>
+    
+    <div id="playersDisplay"></div>
+    
+    <div class="game-actions">
+      <div>棄牌堆頂: <span id="discardTop"></span></div>
+      <button onclick="drawFromDeck()">從牌堆抽牌</button>
+      <button onclick="drawFromDiscard()">從棄牌堆抽牌</button>
     </div>
 
-    <div id="roomPanel" style="display:none;">
-      <h2>Room Code: <span id="roomCode"></span></h2>
-      <div id="playerList"></div>
-      <button id="startGameBtn" onclick="startGame()" disabled>Start Game</button>
+    <div id="myCards" class="my-cards">
+      <h3>我的牌</h3>
+      <div id="cardGrid"></div>
     </div>
 
-    <div id="gamePanel" style="display:none;">
-      <div id="handContainer"></div>
-      <div id="discardPile"></div>
-      <div id="deckRemaining"></div>
+    <div class="game-actions">
+      <button onclick="endTurn()">結束回合</button>
+      <button onclick="leaveRoom()">離開遊戲</button>
     </div>
   </div>
 
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
-
