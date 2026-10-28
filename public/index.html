@@ -1,72 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CABO Card Game</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- Main Menu -->
-  <div id="mainMenu" class="screen">
-    <h1>CABO</h1>
-    <p>線上卡牌遊戲</p>
-    <input id="playerName" type="text" placeholder="輸入你的名字" maxlength="15">
-    <button id="createBtn">建立房間</button>
-    <button id="joinBtn">加入房間</button>
+  <div id="menu" class="screen">
+    <div class="menu-container">
+      <h1>CABO</h1>
+      <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
+      <button id="createRoomBtn">Create Room</button>
+      <button id="joinRoomBtn">Join Room</button>
+    </div>
   </div>
 
-  <!-- Join Menu -->
-  <div id="joinMenu" class="screen hidden">
-    <h2>加入房間</h2>
-    <input id="roomCode" type="text" placeholder="房間代碼" maxlength="6" style="text-transform: uppercase;">
-    <button id="joinRoomBtn">加入</button>
-    <button id="backBtn">返回</button>
-  </div>
-
-  <!-- Lobby -->
-  <div id="lobby" class="screen hidden">
-    <h2>房間: <span id="roomDisplay"></span></h2>
-    <div id="playerList"></div>
-    <button id="startBtn" disabled>開始遊戲（需2人以上）</button>
-    <button id="leaveLobbyBtn">離開房間</button>
+  <!-- Room Screen -->
+  <div id="room" class="screen">
+    <div class="room-container">
+      <h2>Room: <span id="roomCodeDisplay"></span></h2>
+      <h3>Players</h3>
+      <div id="playerList"></div>
+      <button id="startGameBtn" disabled>Start Game</button>
+      <button id="leaveRoomBtn">Leave Room</button>
+    </div>
   </div>
 
   <!-- Game Screen -->
-  <div id="gameScreen" class="screen hidden">
-    <div id="gameHeader">
-      <h2>第 <span id="roundNum">1</span> 輪</h2>
-      <p>房間: <span id="gameRoomCode"></span></p>
+  <div id="game" class="screen">
+    <div class="game-container">
+      <div class="game-top">
+        <div class="discard-section">
+          <h4>Discard Pile</h4>
+          <div id="discardPile"></div>
+        </div>
+        <div class="info-section">
+          <p id="currentPlayerDisplay">Current: --</p>
+        </div>
+      </div>
+
+      <div class="game-middle">
+        <div id="handContainer" class="hand-container"></div>
+      </div>
+
+      <div class="game-bottom">
+        <div id="drawnCardDisplay" class="drawn-card"></div>
+        <div class="button-group">
+          <button id="drawCardBtn">Draw Card</button>
+          <button id="discardBtn" disabled>Discard</button>
+          <button id="caboBton">Call CABO</button>
+        </div>
+      </div>
+
+      <button id="confirmCardsBtn" style="position: absolute; top: 20px; right: 20px;">Confirm Cards</button>
     </div>
-
-    <div id="currentPlayerInfo">
-      <p>現在輪到: <strong id="currentPlayerName"></strong></p>
-    </div>
-
-    <div id="myHandArea">
-      <p>我的手牌:</p>
-      <div id="myHand"></div>
-    </div>
-
-    <div id="discardArea">
-      <p>棄牌堆: <span id="discardCard"></span></p>
-    </div>
-
-    <div id="drawnCardArea" class="hidden">
-      <p>抽到的卡: <span id="drawnCard"></span></p>
-    </div>
-
-    <div id="gameActions"></div>
-
-    <div id="scoreBoard" class="hidden">
-      <h3>分數</h3>
-      <div id="scores"></div>
-    </div>
-
-    <button id="callCaboBtn" class="hidden">呼叫CABO</button>
   </div>
 
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
+
