@@ -5,163 +5,184 @@
 }
 
 body {
-  font-family: 'Arial', sans-serif;
+  font-family: Arial, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+  color: #333;
 }
 
 .screen {
-  width: 100%;
-  max-width: 600px;
-  padding: 20px;
+  display: block;
 }
 
 .container {
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 600px;
+  width: 90%;
 }
 
 h1 {
-  color: #667eea;
-  font-size: 48px;
-  margin-bottom: 30px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-h2 {
-  color: #667eea;
+  text-align: center;
   margin-bottom: 20px;
+  color: #667eea;
 }
 
 h3 {
-  color: #333;
-  margin-top: 15px;
+  margin-top: 20px;
   margin-bottom: 10px;
-}
-
-h4 {
-  color: #555;
-  margin-bottom: 10px;
-}
-
-.button-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  color: #764ba2;
 }
 
 input[type="text"] {
-  padding: 12px;
-  border: 2px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-  transition: border-color 0.3s;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
-input[type="text"]:focus {
-  outline: none;
-  border-color: #667eea;
+.buttonGroup {
+  display: flex;
+  gap: 10px;
 }
 
-button {
-  padding: 12px 20px;
-  background-color: #667eea;
-  color: white;
+.btn {
+  padding: 10px 20px;
   border: none;
-  border-radius: 5px;
-  font-size: 16px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s;
+  flex: 1;
 }
 
-button:hover {
-  background-color: #764ba2;
+.btn-primary {
+  background: #667eea;
+  color: white;
 }
 
-button:active {
-  transform: scale(0.98);
+.btn-primary:hover {
+  background: #5568d3;
 }
 
-#playerList {
-  text-align: left;
-  background: #f5f5f5;
-  padding: 15px;
-  border-radius: 5px;
-  margin-bottom: 15px;
-  min-height: 60px;
+.btn-secondary {
+  background: #764ba2;
+  color: white;
 }
 
-#playerList div {
+.btn-secondary:hover {
+  background: #653892;
+}
+
+.btn-danger {
+  background: #f56565;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #e53e3e;
+}
+
+.btn-warning {
+  background: #ed8936;
+  color: white;
+}
+
+.btn-warning:hover {
+  background: #dd6b20;
+}
+
+ul {
+  list-style: none;
+  padding: 10px;
+  background: #f7fafc;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+li {
   padding: 8px;
-  color: #333;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-#playerList div:last-child {
+li:last-child {
   border-bottom: none;
 }
 
-.hand-display {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 15px;
+#gameArea {
+  margin-top: 30px;
+}
+
+.discardPile {
+  display: flex;
+  gap: 10px;
   margin: 20px 0;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
-.player-hand {
-  background: #f9f9f9;
-  padding: 15px;
-  border-radius: 5px;
-  border: 2px solid #ddd;
-}
-
-.player-hand .card {
-  display: inline-block;
+.card {
   width: 60px;
   height: 90px;
-  margin: 5px;
-  padding: 5px;
-  text-align: center;
-  line-height: 90px;
-  border: 1px solid #999;
-  border-radius: 3px;
-  cursor: pointer;
+  border: 2px solid #333;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
   font-weight: bold;
-  font-size: 14px;
-  transition: transform 0.2s;
-}
-
-.card.visible {
+  cursor: pointer;
+  transition: all 0.3s;
   background: white;
-  color: #333;
-}
-
-.card.facedown {
-  background: #667eea;
-  color: white;
 }
 
 .card:hover {
   transform: scale(1.05);
 }
 
-#currentTurn {
-  color: #764ba2;
-  margin-bottom: 20px;
-  font-size: 18px;
+.card.red {
+  color: red;
 }
 
-#roomCode {
+.card.black {
+  color: black;
+}
+
+.card.cardBack {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.playerHand {
+  background: #f7fafc;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#currentPlayer {
+  font-size: 16px;
   font-weight: bold;
   color: #667eea;
-  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
