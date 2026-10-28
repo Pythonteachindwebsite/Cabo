@@ -140,3 +140,15 @@ exitBtn.addEventListener('click', () => {
   showScreen(mainMenu);
   socket.connect();
 });
+// 退串按鈕
+const leaveBtn = document.getElementById('leaveBtn');
+if (leaveBtn) {
+  leaveBtn.addEventListener('click', () => {
+    socket.emit('leaveRoom');
+    showScreen('joinMenu');
+    playerNameInput.value = '';
+    roomIdInput.value = '';
+    currentRoomId = null;
+  });
+}
+
