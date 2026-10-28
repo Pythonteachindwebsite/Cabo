@@ -1,221 +1,82 @@
 const express = require('express');
 const http = require('http');
-const socketIO = require('socket.io');
+const socketIo = require('socket.io');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server, {
+const io = socketIo(server, {
   cors: { origin: "*" }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-const PORT = process.env.PORT || 3000;
-
-// 遊戲狀態
-const games = {};
-
-// 牌組初始化
-function initializeDeck() {
-  const suits = ['♠', '♥', '♦', '♣'];
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-  const deck = [];
-  
-  for (let suit of suits) {
-    for (let rank of ranks) {
-      deck.push({ suit, rank });
-    }
-  }
-  
-  // 洗牌
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  
-  return deck;
-}
-
-// 計算牌的分數
-function getCardValue(card) {
-  if (card.rank === 'K' && card.suit === '♥') return -1; // 紅K是-1
-  if (card.rank === 'K') return 10;
-  if (card.rank === 'Q') return 10;
-  if (card.rank === 'J') return 10;
-  if (card.rank === 'A') return 1;
-  return parseInt(card.rank) || 10;
-}
-
-// 建立新遊戲
-function createGame(gameId) {
-  return {
-    id: gameId,
-    players: [],
-    deck: [],
-    discardPile: [],
-    currentPlayerIndex: 0,
-    gameStarted: false,
-    round: 0,
-    scores: {}
-  };
-}
+// 房間管理
+const rooms = {};
 
 io.on('connection', (socket) => {
-  console.log('新玩家連接:', socket.id);
+  console.log(`玩家連接: ${socket.id}`);
 
-  // 建立或加入遊戲房間
-  socket.on('joinGame', (data) => {
-    const { gameId, playerName } = data;
-    
-    if (!games[gameId]) {
-      games[gameId] = createGame(gameId);
+  // 建立房間
+  socket.on('createRoom', (playerName, callback) => {
+    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    rooms[roomId] = {
+      id: roomId,
+      players: [{ id: socket.id, name: playerName }],
+      gameStarted: false
+    };
+    socket.join(roomId);
+    socket.roomId = roomId;
+    console.log(`房間建立: ${roomId}, 玩家: ${playerName}`);
+    callback({ success: true, roomId: roomId });
+  });
+
+  // 加入房間
+  socket.on('joinRoom', (roomId, playerName, callback) => {
+    if (!rooms[roomId]) {
+      callback({ success: false, message: '房間不存在' });
+      return;
     }
-    
-    const game = games[gameId];
-    
-    if (game.players.length < 4) {
-      const player = {
-        id: socket.id,
-        name: playerName,
-        hand: [],
-        revealed: [],
-        peeked: {},
-        cabo: false
-      };
-      
-      game.players.push(player);
-      game.scores[socket.id] = 0;
-      
-      socket.join(gameId);
-      socket.gameId = gameId;
-      socket.playerId = socket.id;
-      
-      // 通知所有玩家
-      io.to(gameId).emit('playerJoined', {
-        players: game.players.map(p => ({ id: p.id, name: p.name })),
-        message: `${playerName} 加入了遊戲`
-      });
-      
-      // 如果有4個玩家，開始遊戲
-      if (game.players.length === 4) {
-        startGame(gameId);
-      }
-    } else {
-      socket.emit('error', '房間已滿');
+    if (rooms[roomId].players.length >= 4) {
+      callback({ success: false, message: '房間已滿' });
+      return;
     }
+    rooms[roomId].players.push({ id: socket.id, name: playerName });
+    socket.join(roomId);
+    socket.roomId = roomId;
+    io.to(roomId).emit('playerJoined', rooms[roomId].players);
+    console.log(`玩家加入房間 ${roomId}: ${playerName}`);
+    callback({ success: true, roomId: roomId, players: rooms[roomId].players });
   });
 
   // 開始遊戲
-  function startGame(gameId) {
-    const game = games[gameId];
-    game.gameStarted = true;
-    game.round++;
-    game.deck = initializeDeck();
-    game.discardPile = [];
-    
-    // 每個玩家發4張牌
-    for (let player of game.players) {
-      player.hand = [];
-      player.revealed = [null, null, null, null];
-      player.peeked = {};
-      player.cabo = false;
-      
-      for (let i = 0; i < 4; i++) {
-        player.hand.push(game.deck.pop());
-      }
-    }
-    
-    // 棄牌堆放一張牌
-    game.discardPile.push(game.deck.pop());
-    
-    io.to(gameId).emit('gameStarted', {
-      players: game.players.map((p, idx) => ({
-        id: p.id,
-        name: p.name,
-        handCount: p.hand.length
-      })),
-      currentPlayer: game.players[game.currentPlayerIndex].name
-    });
-    
-    // 通知每個玩家他們的牌
-    for (let player of game.players) {
-      io.to(player.id).emit('updateHand', {
-        hand: player.hand,
-        revealed: player.revealed
-      });
-    }
-  }
-
-  // 玩家出牌
-  socket.on('playCard', (data) => {
-    const game = games[socket.gameId];
-    if (!game || game.players[game.currentPlayerIndex].id !== socket.id) {
-      return;
-    }
-    
-    const player = game.players[game.currentPlayerIndex];
-    const { cardIndex, position } = data;
-    
-    if (position !== null) {
-      // 放到特定位置
-      player.revealed[position] = player.hand[cardIndex];
-    }
-    
-    const playedCard = player.hand.splice(cardIndex, 1)[0];
-    game.discardPile.push(playedCard);
-    
-    // 抽牌
-    if (game.deck.length > 0) {
-      player.hand.push(game.deck.pop());
-    }
-    
-    // 下一個玩家
-    game.currentPlayerIndex = (game.currentPlayerIndex + 1) % 4;
-    
-    io.to(socket.gameId).emit('gameUpdate', {
-      currentPlayer: game.players[game.currentPlayerIndex].name,
-      discardPile: game.discardPile[game.discardPile.length - 1],
-      players: game.players.map((p, idx) => ({
-        id: p.id,
-        name: p.name,
-        handCount: p.hand.length,
-        revealed: p.revealed
-      }))
-    });
-  });
-
-  // 玩家宣佈 CABO
-  socket.on('declareCabo', () => {
-    const game = games[socket.gameId];
-    if (!game) return;
-    
-    const player = game.players.find(p => p.id === socket.id);
-    if (player) {
-      player.cabo = true;
-      io.to(socket.gameId).emit('caboDeclared', {
-        playerName: player.name
-      });
+  socket.on('startGame', (callback) => {
+    const roomId = socket.roomId;
+    if (rooms[roomId]) {
+      rooms[roomId].gameStarted = true;
+      io.to(roomId).emit('gameStarted', rooms[roomId].players);
+      console.log(`房間 ${roomId} 遊戲開始`);
+      callback({ success: true });
     }
   });
 
-  // 斷開連接
+  // 斷線
   socket.on('disconnect', () => {
-    console.log('玩家斷開連接:', socket.id);
-    const game = games[socket.gameId];
-    if (game) {
-      game.players = game.players.filter(p => p.id !== socket.id);
-      if (game.players.length === 0) {
-        delete games[socket.gameId];
+    const roomId = socket.roomId;
+    if (roomId && rooms[roomId]) {
+      rooms[roomId].players = rooms[roomId].players.filter(p => p.id !== socket.id);
+      if (rooms[roomId].players.length === 0) {
+        delete rooms[roomId];
+        console.log(`房間 ${roomId} 已刪除`);
       } else {
-        io.to(socket.gameId).emit('playerLeft', {
-          players: game.players.map(p => ({ id: p.id, name: p.name }))
-        });
+        io.to(roomId).emit('playerLeft', rooms[roomId].players);
+        console.log(`玩家離開房間 ${roomId}`);
       }
     }
   });
 });
 
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Cabo 遊戲伺服器運行在 http://localhost:${PORT}`);
+  console.log(`Cabo 遊戲伺服器運行於 http://localhost:${PORT}`);
 });
