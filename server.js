@@ -19,7 +19,8 @@ io.on('connection', (socket) => {
 
   // 建立房間
   socket.on('createRoom', (playerName, callback) => {
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+
     rooms[roomId] = {
       id: roomId,
       players: [{ id: socket.id, name: playerName }],
