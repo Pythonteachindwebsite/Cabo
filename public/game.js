@@ -1,4 +1,5 @@
-const socket = io();
+const socket = io(window.location.origin);
+
 
 const mainMenu = document.getElementById('mainMenu');
 const joinMenu = document.getElementById('joinMenu');
