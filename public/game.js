@@ -1,142 +1,127 @@
 const socket = io();
 
-let currentPage = 'roomSelect';
+const mainMenu = document.getElementById('mainMenu');
+const joinMenu = document.getElementById('joinMenu');
+const waitingRoom = document.getElementById('waitingRoom');
+const gameScreen = document.getElementById('gameScreen');
+
+const playerNameInput = document.getElementById('playerName');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+const confirmJoinBtn = document.getElementById('confirmJoinBtn');
+const backBtn = document.getElementById('backBtn');
+const startBtn = document.getElementById('startBtn');
+const exitBtn = document.getElementById('exitBtn');
+const roomIdInput = document.getElementById('roomIdInput');
+
+const roomCode = document.getElementById('roomCode');
+const playersList = document.getElementById('playersList');
+const playerCount = document.getElementById('playerCount');
+
 let currentRoomId = null;
-let playerName = null;
-let isRoomCreator = false;
 
-// ===== 頁面切換函數 =====
-function showPage(pageName) {
-    document.querySelectorAll('.page').forEach(page => {
-        page.classList.add('hidden');
-    });
-    document.getElementById(pageName + 'Page').classList.remove('hidden');
-    currentPage = pageName;
+// 切換畫面
+function showScreen(screen) {
+  mainMenu.classList.remove('active');
+  joinMenu.classList.remove('active');
+  waitingRoom.classList.remove('active');
+  gameScreen.classList.remove('active');
+  screen.classList.add('active');
 }
 
-// ===== 房間選擇按鈕 =====
-document.getElementById('createRoomBtn').addEventListener('click', () => {
-    playerName = prompt('請輸入你的名字:');
-    if (playerName && playerName.trim()) {
-        socket.emit('createRoom', { playerName: playerName.trim() });
+// 建立房間
+createBtn.addEventListener('click', () => {
+  const name = playerNameInput.value.trim();
+  if (!name) {
+    alert('請輸入名字');
+    return;
+  }
+  socket.emit('createRoom', name, (response) => {
+    if (response.success) {
+      currentRoomId = response.roomId;
+      roomCode.textContent = response.roomId;
+      playersList.innerHTML = `<li>✓ ${name}</li>`;
+      playerCount.textContent = '1';
+      showScreen(waitingRoom);
     }
+  });
 });
 
-document.getElementById('joinRoomBtn').addEventListener('click', () => {
-    showPage('joinRoom');
+// 加入房間
+joinBtn.addEventListener('click', () => {
+  const name = playerNameInput.value.trim();
+  if (!name) {
+    alert('請輸入名字');
+    return;
+  }
+  showScreen(joinMenu);
 });
 
-// ===== 加入房間 =====
-document.getElementById('joinConfirmBtn').addEventListener('click', () => {
-    const roomId = document.getElementById('roomIdInput').value.trim();
-    const name = document.getElementById('playerNameInput').value.trim();
-
-    if (!roomId) {
-        alert('請輸入房間ID');
-        return;
+confirmJoinBtn.addEventListener('click', () => {
+  const roomId = roomIdInput.value.trim().toUpperCase();
+  const name = playerNameInput.value.trim();
+  if (!roomId) {
+    alert('請輸入房間代碼');
+    return;
+  }
+  socket.emit('joinRoom', roomId, name, (response) => {
+    if (response.success) {
+      currentRoomId = response.roomId;
+      roomCode.textContent = response.roomId;
+      updatePlayersList(response.players);
+      showScreen(waitingRoom);
+    } else {
+      alert(response.message);
     }
-    if (!name) {
-        alert('請輸入你的名字');
-        return;
-    }
-
-    playerName = name;
-    socket.emit('joinRoom', { roomId, playerName });
+  });
 });
 
-// ===== 返回按鈕 =====
-document.getElementById('backBtn1').addEventListener('click', () => {
-    showPage('roomSelect');
-    document.getElementById('roomIdInput').value = '';
-    document.getElementById('playerNameInput').value = '';
-});
-
-document.getElementById('backBtn2').addEventListener('click', () => {
-    socket.emit('leaveRoom');
-    showPage('roomSelect');
-});
-
-// ===== 複製房間ID =====
-document.getElementById('copyRoomIdBtn').addEventListener('click', () => {
-    const roomId = document.getElementById('displayRoomId').textContent;
-    navigator.clipboard.writeText(roomId).then(() => {
-        alert('房間ID已複製！');
-    });
-});
-
-// ===== 開始遊戲按鈕 =====
-document.getElementById('startGameBtn').addEventListener('click', () => {
-    if (isRoomCreator) {
-        socket.emit('startGame', { roomId: currentRoomId });
-    }
-});
-
-// ===== Socket.IO 事件監聽 =====
-
-// 房間建立成功
-socket.on('roomCreated', (data) => {
-    currentRoomId = data.roomId;
-    isRoomCreator = true;
-    showPage('waiting');
-    document.getElementById('displayRoomId').textContent = data.roomId;
-    updatePlayersList(data.players);
-});
-
-// 加入房間成功
-socket.on('joinedRoom', (data) => {
-    currentRoomId = data.roomId;
-    isRoomCreator = false;
-    showPage('waiting');
-    document.getElementById('displayRoomId').textContent = data.roomId;
-    updatePlayersList(data.players);
-});
-
-// 玩家列表更新
-socket.on('playersUpdated', (data) => {
-    updatePlayersList(data.players);
-    updatePlayerCount(data.players.length);
-
-    // 如果是房間創建者，根據人數啟用/禁用開始按鈕
-    if (isRoomCreator) {
-        document.getElementById('startGameBtn').disabled = data.players.length < 2;
-    }
-});
-
-// 遊戲開始
-socket.on('gameStarted', (data) => {
-    showPage('game');
-    displayGameBoard(data);
-});
-
-// 錯誤處理
-socket.on('error', (data) => {
-    alert('錯誤：' + data.message);
-    showPage('roomSelect');
-});
-
-// ===== 輔助函數 =====
+// 更新玩家列表
 function updatePlayersList(players) {
-    const playersList = document.getElementById('playersList');
-    playersList.innerHTML = '';
-    
-    players.forEach((player, index) => {
-        const playerDiv = document.createElement('div');
-        playerDiv.className = 'player-item';
-        playerDiv.textContent = `${index + 1}. ${player.name} ${player.id === socket.id ? '(你)' : ''}`;
-        playersList.appendChild(playerDiv);
-    });
+  playersList.innerHTML = '';
+  players.forEach(player => {
+    const li = document.createElement('li');
+    li.textContent = `✓ ${player.name}`;
+    playersList.appendChild(li);
+  });
+  playerCount.textContent = players.length;
 }
 
-function updatePlayerCount(count) {
-    document.getElementById('playerCountText').textContent = `玩家數量：${count}/4`;
-}
+// 接收玩家加入通知
+socket.on('playerJoined', (players) => {
+  updatePlayersList(players);
+});
 
-function displayGameBoard(gameData) {
-    const gameContent = document.getElementById('gameContent');
-    gameContent.innerHTML = `
-        <p>遊戲已開始！</p>
-        <p>房間ID：${currentRoomId}</p>
-        <p>玩家：${gameData.players.map(p => p.name).join(', ')}</p>
-        <p style="color: #999; font-size: 0.9em; margin-top: 20px;">完整遊戲邏輯開發中...</p>
-    `;
-}
+// 接收玩家離開通知
+socket.on('playerLeft', (players) => {
+  updatePlayersList(players);
+});
+
+// 開始遊戲
+startBtn.addEventListener('click', () => {
+  socket.emit('startGame', (response) => {
+    if (response.success) {
+      showScreen(gameScreen);
+    }
+  });
+});
+
+// 接收遊戲開始
+socket.on('gameStarted', (players) => {
+  showScreen(gameScreen);
+});
+
+// 返回 & 退出
+backBtn.addEventListener('click', () => {
+  roomIdInput.value = '';
+  showScreen(mainMenu);
+});
+
+exitBtn.addEventListener('click', () => {
+  socket.disconnect();
+  playerNameInput.value = '';
+  roomIdInput.value = '';
+  currentRoomId = null;
+  showScreen(mainMenu);
+  socket.connect();
+});
