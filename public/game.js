@@ -1,35 +1,103 @@
 const socket = io();
 let currentRoom = null;
-let playerName = '';
-let playerIndex = null;
+let myPlayerIndex = null;
+
+socket.on('roomCreated', (data) => {
+  currentRoom = data.roomCode;
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('lobbyScreen').style.display = 'block';
+  document.getElementById('roomCode').textContent = currentRoom;
+  updatePlayerList([]);
+});
+
+socket.on('playerJoined', (data) => {
+  updatePlayerList(data.players);
+});
+
+socket.on('playerLeft', (data) => {
+  updatePlayerList(data.players);
+});
+
+socket.on('gameStarted', (data) => {
+  document.getElementById('lobbyScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'block';
+  updateGameState(data);
+});
+
+socket.on('updateHands', (data) => {
+  renderHands(data);
+});
+
+socket.on('drawnCardShow', (data) => {
+  document.getElementById('drawnCardDisplay').textContent = 
+    `${data.card.rank}${data.card.suit}`;
+  document.getElementById('drawnCard').style.display = 'block';
+});
+
+socket.on('cardDrawn', (data) => {
+  document.getElementById('gameLog').innerHTML += 
+    `<p>${data.playerName} drew a card</p>`;
+});
+
+socket.on('cardSwapped', (data) => {
+  document.getElementById('drawnCard').style.display = 'none';
+  document.getElementById('gameLog').innerHTML += 
+    `<p>${data.playerName} swapped card at position ${data.handIndex + 1}</p>`;
+});
+
+socket.on('cardDiscarded', (data) => {
+  document.getElementById('discardTop').textContent = 
+    `${data.card.rank}${data.card.suit}`;
+  document.getElementById('gameLog').innerHTML += 
+    `<p>${data.playerName} discarded ${data.card.rank}${data.card.suit}</p>`;
+});
+
+socket.on('turnEnded', (data) => {
+  document.getElementById('currentPlayer').textContent = data.nextPlayer;
+  document.getElementById('gameLog').innerHTML += 
+    `<p>Turn ended. ${data.nextPlayer}'s turn</p>`;
+});
+
+socket.on('roundReset', (data) => {
+  document.getElementById('gameLog').innerHTML = 
+    `<p>Round ${data.round} started</p>`;
+  updatePlayerList(data.players);
+});
+
+socket.on('gameOver', (data) => {
+  let scoreText = '<h3>Final Scores:</h3>';
+  data.scores.forEach(s => {
+    scoreText += `<p>${s.name}: ${s.score}</p>`;
+  });
+  scoreText += `<p><strong>Winner: ${data.winner.name}</strong></p>`;
+  document.getElementById('gameLog').innerHTML = scoreText;
+});
+
+socket.on('error', (data) => {
+  alert(data.message);
+});
 
 function createRoom() {
-  playerName = document.getElementById('playerName').value.trim();
+  const playerName = document.getElementById('playerNameInput').value.trim();
   if (!playerName) {
-    alert('請輸入名字');
+    alert('Please enter your name');
     return;
   }
   socket.emit('createRoom', playerName);
 }
 
-function showJoinRoom() {
-  document.getElementById('mainScreen').style.display = 'none';
-  document.getElementById('joinRoomScreen').style.display = 'block';
-}
-
-function backToMain() {
-  document.getElementById('joinRoomScreen').style.display = 'none';
-  document.getElementById('mainScreen').style.display = 'block';
-}
-
 function joinRoom() {
-  playerName = document.getElementById('joinPlayerName').value.trim();
   const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-  if (!playerName || !roomCode) {
-    alert('請輸入名字和房間代碼');
+  const playerName = document.getElementById('playerNameInput2').value.trim();
+  if (!roomCode || !playerName) {
+    alert('Please enter room code and name');
     return;
   }
   socket.emit('joinRoom', { roomCode, playerName });
+  currentRoom = roomCode;
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('lobbyScreen').style.display = 'block';
+  document.getElementById('roomCode').textContent = roomCode;
 }
 
 function startGame() {
@@ -40,105 +108,77 @@ function drawCard() {
   socket.emit('drawCard', currentRoom);
 }
 
+function discardDrawn() {
+  socket.emit('discardCard', { roomCode: currentRoom });
+}
+
 function swapCard(handIndex) {
   socket.emit('swapCard', { roomCode: currentRoom, handIndex });
+}
+
+function endTurn() {
+  socket.emit('endTurn', currentRoom);
 }
 
 function callCabo() {
   socket.emit('callCabo', currentRoom);
 }
 
-function leaveRoom() {
-  socket.emit('leaveRoom', currentRoom);
-  currentRoom = null;
-  playerIndex = null;
-  document.getElementById('mainScreen').style.display = 'block';
-  document.getElementById('lobbyScreen').style.display = 'none';
-  document.getElementById('gameScreen').style.display = 'none';
+function updatePlayerList(players) {
+  const playerList = document.getElementById('playerList');
+  playerList.innerHTML = players.map(p => `<li>${p.name}</li>`).join('');
 }
 
-socket.on('roomCreated', (data) => {
-  currentRoom = data.roomCode;
-  document.getElementById('mainScreen').style.display = 'none';
-  document.getElementById('lobbyScreen').style.display = 'block';
-  document.getElementById('roomCode').textContent = data.roomCode;
-});
-
-socket.on('joinedRoom', (data) => {
-  currentRoom = data.roomCode;
-  document.getElementById('mainScreen').style.display = 'none';
-  document.getElementById('joinRoomScreen').style.display = 'none';
-  document.getElementById('lobbyScreen').style.display = 'block';
-  document.getElementById('roomCode').textContent = data.roomCode;
-});
-
-socket.on('updatePlayers', (players) => {
-  const playerList = document.getElementById('playerList');
-  playerList.innerHTML = '';
-  players.forEach(p => {
-    const playerDiv = document.createElement('div');
-    playerDiv.textContent = p.name;
-    playerList.appendChild(playerDiv);
-  });
-  const startBtn = document.getElementById('startBtn');
-  if (players[0].id === socket.id && players.length >= 2) {
-    startBtn.style.display = 'block';
+function updateGameState(data) {
+  document.getElementById('currentPlayer').textContent = data.currentPlayer;
+  if (data.discardTop) {
+    document.getElementById('discardTop').textContent = 
+      `${data.discardTop.rank}${data.discardTop.suit}`;
   }
-});
+}
 
-socket.on('gameStarted', (data) => {
-  document.getElementById('lobbyScreen').style.display = 'none';
-  document.getElementById('gameScreen').style.display = 'block';
-  document.getElementById('currentTurn').textContent = `當前玩家：${data.currentPlayer}`;
-});
+function renderHands(data) {
+  const handsContainer = document.getElementById('handsContainer');
+  handsContainer.innerHTML = '';
 
-socket.on('updateHands', (hands) => {
-  const handDisplay = document.getElementById('handDisplay');
-  handDisplay.innerHTML = '';
-  hands.forEach(({ playerIndex: idx, hand }) => {
-    const handDiv = document.createElement('div');
-    handDiv.className = 'player-hand';
-    handDiv.innerHTML = `<h4>玩家 ${idx + 1} 的手牌</h4>`;
-    hand.forEach((cardObj, cardIndex) => {
+  data.forEach((playerData) => {
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'player-section';
+    
+    const playerName = document.createElement('h4');
+    playerName.textContent = playerData.playerName;
+    playerDiv.appendChild(playerName);
+
+    const cardsDiv = document.createElement('div');
+    cardsDiv.className = 'cards';
+
+    playerData.hand.forEach((cardObj, cardIndex) => {
       const cardDiv = document.createElement('div');
-      cardDiv.className = 'card';
+      cardDiv.className = playerData.playerName === getCurrentPlayerName() ? 'card' : 'card-other';
+      
       if (cardObj.isVisible) {
-        cardDiv.textContent = cardObj.card.rank + cardObj.card.suit;
-        cardDiv.classList.add('visible');
+        cardDiv.textContent = `${cardObj.card.rank}${cardObj.card.suit}`;
+        cardDiv.style.backgroundColor = '#fff';
+        cardDiv.style.color = '#000';
+        cardDiv.style.cursor = 'pointer';
+        if (playerData.playerName === getCurrentPlayerName()) {
+          cardDiv.onclick = () => swapCard(cardIndex);
+        }
       } else {
         cardDiv.textContent = '?';
-        cardDiv.classList.add('facedown');
+        cardDiv.style.backgroundColor = '#888';
+        cardDiv.style.color = '#fff';
       }
-      if (playerIndex === idx) {
-        cardDiv.onclick = () => swapCard(cardIndex);
-      }
-      handDiv.appendChild(cardDiv);
+
+      cardsDiv.appendChild(cardDiv);
     });
-    handDisplay.appendChild(handDiv);
+
+    playerDiv.appendChild(cardsDiv);
+    handsContainer.appendChild(playerDiv);
   });
-});
+}
 
-socket.on('cardDrawn', (data) => {
-  console.log(`${data.playerName} 抽到了 ${data.card.rank}${data.card.suit}`);
-});
-
-socket.on('cardSwapped', (data) => {
-  console.log(`${data.playerName} 交換了卡牌`);
-});
-
-socket.on('turnChanged', (data) => {
-  document.getElementById('currentTurn').textContent = `當前玩家：${data.currentPlayer}`;
-});
-
-socket.on('caboround', (data) => {
-  alert(data.message || data.playerName + ' ' + (data.message || '喊了 CABO'));
-});
-
-socket.on('roundEnded', (data) => {
-  alert(`第 ${data.round} 輪結束！贏家是 ${data.winner}`);
-});
-
-socket.on('error', (message) => {
-  alert('錯誤：' + message);
-});
+function getCurrentPlayerName() {
+  return document.getElementById('currentPlayer').textContent;
+}
 
