@@ -1,56 +1,41 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cabo 卡牌遊戲</title>
+  <title>CABO Game</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- 主畫面 -->
-  <div id="mainMenu" class="screen active">
-    <div class="menu-container">
-      <h1><img src="/IMG_0872.jpeg" alt="Cabo" style="width: 40px; height: 40px; border-radius: 50%; vertical-align: middle;"> Cabo</h1>
-
-      <input type="text" id="playerName" placeholder="輸入你的名字" maxlength="15">
-      <button id="createBtn" class="btn btn-primary">建立房間</button>
-      <button id="joinBtn" class="btn btn-secondary">加入房間</button>
-    </div>
+  <!-- 加入房間 -->
+  <div id="joinMenu" class="screen active">
+    <h1>😍 CABO</h1>
+    <input type="text" id="playerName" placeholder="輸入玩家名稱">
+    <button id="createRoomBtn">創建房間</button>
+    <input type="text" id="roomId" placeholder="輸入房間代碼">
+    <button id="joinRoomBtn">加入房間</button>
   </div>
 
-  <!-- 加入房間畫面 -->
-  <div id="joinMenu" class="screen">
-    <div class="menu-container">
-      <h2>加入房間</h2>
-      <input type="text" id="roomIdInput" placeholder="輸入房間代碼" maxlength="6">
-      <button id="confirmJoinBtn" class="btn btn-primary">確認</button>
-      <button id="backBtn" class="btn btn-secondary">返回</button>
-    </div>
+  <!-- 房間等待 -->
+  <div id="gameMenu" class="screen">
+    <h2>房間等待中</h2>
+    <div id="playersList"></div>
+    <button id="startGameBtn" style="display: none;">開始遊戲</button>
+    <button id="leaveBtn">退串</button>
   </div>
 
-  <!-- 等待房間畫面 -->
-  <div id="waitingRoom" class="screen">
-    <div class="waiting-container">
-      <h2>房間代碼: <span id="roomCode"></span></h2>
-      <div class="players-list">
-        <h3>遊戲玩家 (<span id="playerCount">0</span>/4):</h3>
-        <ul id="playersList"></ul>
-      </div>
-      <button id="startGameBtn" disabled style="opacity: 0.5;">開始遊戲</button>
-
-      <button id="exitBtn" class="btn btn-secondary">退出</button>
-    </div>
+  <!-- 遊戲中 -->
+  <div id="gameBoard" class="screen">
+    <h2>CABO 遊戲中</h2>
+    <div id="gameInfo"></div>
+    <div id="gameLog" style="height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0;"></div>
+    <div id="handDisplay"></div>
+    <button id="drawBtn" onclick="socket.emit('drawCard')">抽牌</button>
+    <button id="caboBtn" onclick="socket.emit('callCabo')" style="background: red; color: white;">宣布 CABO</button>
+    <button id="leaveBtn">退串</button>
   </div>
 
-  <!-- 遊戲畫面 -->
-  <div id="gameScreen" class="screen">
-    <div class="game-container">
-      <h2>遊戲進行中...</h2>
-      <p id="gameStatus">等待所有玩家準備</p>
-    </div>
-  </div>
-
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
