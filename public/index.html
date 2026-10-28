@@ -3,47 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CABO 遊戲</title>
+  <title>CABO 卡牌遊戲</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- 加入房間畫面 -->
-  <div id="joinScreen" class="screen">
+  <div id="mainMenu" class="screen active">
     <div class="container">
-      <h1>CABO 遊戲</h1>
-      <input type="text" id="playerName" placeholder="輸入玩家名稱" />
-      <div class="buttonGroup">
-        <button id="createRoom" class="btn btn-primary">創建房間</button>
-        <button id="joinRoom" class="btn btn-secondary">加入房間</button>
-      </div>
-      <input type="text" id="roomId" placeholder="輸入房間代碼" style="display: none;" />
-      <div id="joinRoomInput" style="display: none;">
-        <input type="text" id="roomId" placeholder="輸入房間代碼" />
+      <h1>CABO 卡牌遊戲</h1>
+      <div class="menu-buttons">
+        <button id="createRoomBtn">創建房間</button>
+        <button id="joinRoomBtn">加入房間</button>
       </div>
     </div>
   </div>
 
-  <!-- 遊戲畫面 -->
-  <div id="gameScreen" class="screen" style="display: none;">
+  <div id="createRoomScreen" class="screen">
     <div class="container">
-      <h1 id="roomCode">房間代碼: </h1>
-      <h3>玩家列表:</h3>
-      <ul id="playerList"></ul>
-      <button id="startGame" class="btn btn-primary">開始遊戲</button>
-      <button id="leaveRoom" class="btn btn-danger">離開房間</button>
+      <h2>創建房間</h2>
+      <input type="text" id="createPlayerName" placeholder="輸入玩家名稱">
+      <button id="confirmCreateBtn">創建</button>
+      <button id="backFromCreateBtn" class="secondary-btn">返回</button>
+    </div>
+  </div>
 
-      <div id="gameArea" style="display: none;">
-        <div id="currentPlayer"></div>
-        <div id="discardPile" class="discardPile"></div>
-        <button id="drawCard" class="btn btn-primary">抽牌</button>
-        <button onclick="callCable()" class="btn btn-warning">呼喚 CABLE</button>
-        <div id="handsDisplay"></div>
+  <div id="joinRoomScreen" class="screen">
+    <div class="container">
+      <h2>加入房間</h2>
+      <input type="text" id="roomCodeInput" placeholder="輸入房間代碼">
+      <input type="text" id="joinPlayerName" placeholder="輸入玩家名稱">
+      <button id="confirmJoinBtn">加入</button>
+      <button id="backFromJoinBtn" class="secondary-btn">返回</button>
+    </div>
+  </div>
+
+  <div id="waitingScreen" class="screen">
+    <div class="container">
+      <h2>房間代碼：<span id="displayRoomCode"></span></h2>
+      <div id="playersList"></div>
+      <button id="startGameBtn">開始遊戲</button>
+      <button id="leaveRoomBtn" class="secondary-btn">離開房間</button>
+    </div>
+  </div>
+
+  <div id="gameScreen" class="screen">
+    <div class="top-bar">
+      <div class="round-info">第 <span id="roundDisplay">1</span> 局</div>
+      <button id="caboBtn">喊 CABO</button>
+      <button id="exitGameBtn" class="secondary-btn">退出遊戲</button>
+    </div>
+
+    <div class="game-container">
+      <div id="opponentsArea" class="opponents-area"></div>
+      
+      <div class="center-area">
+        <div id="discardPile" class="discard-pile">
+          <div id="topDiscardCard" class="card"></div>
+        </div>
+        <div id="deckArea" class="deck-area">
+          <button id="drawBtn" class="deck-card">抽牌</button>
+          <span id="deckCount">0</span>
+        </div>
       </div>
+
+      <div id="playerArea" class="player-area">
+        <div class="player-info">
+          <span id="playerName"></span>
+          <span id="playerScore">分數: 0</span>
+        </div>
+        <div id="playerHand" class="player-hand"></div>
+      </div>
+    </div>
+
+    <div id="drawnCardDisplay" class="drawn-card-display" style="display: none;">
+      <div class="card" id="drawnCardPreview"></div>
+      <div class="drawn-card-actions">
+        <button id="discardDrawnBtn">棄牌</button>
+        <button id="swapDrawnBtn">交換</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameEndScreen" class="screen">
+    <div class="container">
+      <h2>遊戲結束</h2>
+      <div id="finalScores"></div>
+      <button id="returnToMenuBtn">返回主菜單</button>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/game.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
-
