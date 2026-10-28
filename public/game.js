@@ -4,13 +4,18 @@ let gameState = null;
 let playerIndex = null;
 let roomCode = null;
 
+// 等待 DOM 加载完成再绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('createBtn').addEventListener('click', createRoom);
+  document.getElementById('joinBtn').addEventListener('click', joinRoom);
+});
+
 socket.on('roomCreated', (data) => {
   playerIndex = data.playerIndex;
   roomCode = data.roomCode;
   document.getElementById('mainMenu').style.display = 'none';
   document.getElementById('waitingScreen').style.display = 'block';
-  document.getElementById('roomCodeDisplay').textContent = roomCode;
-  updatePlayerList();
+  document.getElementById('roomCodeDisplay').textContent = '房间代码: ' + roomCode;
 });
 
 socket.on('roomJoined', (data) => {
@@ -18,15 +23,17 @@ socket.on('roomJoined', (data) => {
   roomCode = data.roomCode;
   document.getElementById('mainMenu').style.display = 'none';
   document.getElementById('waitingScreen').style.display = 'block';
+  document.getElementById('roomCodeDisplay').textContent = '房间代码: ' + roomCode;
 });
 
 socket.on('playerListUpdated', (players) => {
   const playerListDiv = document.getElementById('playerList');
-  playerListDiv.innerHTML = '';
+  playerListDiv.innerHTML = '<div style="text-align: left; margin-top: 15px;"><strong>玩家列表:</strong><br>';
   players.forEach((p, i) => {
     const status = p.connected ? '✓' : '✗';
-    playerListDiv.innerHTML += `<div>${i + 1}. ${p.name || '空'} ${status}</div>`;
+    playerListDiv.innerHTML += `<div style="padding: 5px 0;">${i + 1}. ${p.name || '等待中'} ${status}</div>`;
   });
+  playerListDiv.innerHTML += '</div>';
 });
 
 socket.on('gameStarted', (data) => {
@@ -44,18 +51,13 @@ socket.on('gameUpdated', (data) => {
 
 socket.on('drawnCard', (data) => {
   document.getElementById('drawnCardDisplay').innerHTML = `
-    <div class="card">${data.card.rank}${data.card.suit}</div>
-    <button onclick="swapWithHand()">替换手牌</button>
-    <button onclick="discardDrawn()">弃牌</button>
+    <div style="background: white; padding: 15px; border-radius: 6px; text-align: center;">
+      <div>已抽到的卡:</div>
+      <div class="card" style="margin: 10px auto;">${data.card.rank}${data.card.suit}</div>
+      <button onclick="swapWithHand()" style="margin: 5px;">替换手牌</button>
+      <button onclick="discardDrawn()" style="margin: 5px;">弃牌</button>
+    </div>
   `;
-});
-
-socket.on('viewOwnCard', (data) => {
-  alert(`你的卡: ${data.card.rank}${data.card.suit}`);
-});
-
-socket.on('viewOpponentCard', (data) => {
-  alert(`${data.playerName}的卡: ${data.card.rank}${data.card.suit}`);
 });
 
 socket.on('pairingSuccess', (data) => {
@@ -70,7 +72,7 @@ socket.on('gameFinished', (data) => {
 });
 
 function createRoom() {
-  const name = document.getElementById('playerNameInput').value;
+  const name = document.getElementById('playerNameInput').value.trim();
   if (!name) {
     alert('请输入玩家名称');
     return;
@@ -79,8 +81,8 @@ function createRoom() {
 }
 
 function joinRoom() {
-  const code = document.getElementById('roomCodeInput').value;
-  const name = document.getElementById('playerNameInput2').value;
+  const code = document.getElementById('roomCodeInput').value.trim();
+  const name = document.getElementById('playerNameInput2').value.trim();
   if (!code || !name) {
     alert('请输入房间代码和玩家名称');
     return;
@@ -111,7 +113,10 @@ function renderGame() {
 
   board.innerHTML += `<div class="discard-section"><div class="discard-title">弃牌堆顶</div><div class="card">${gameState.discard.rank}${gameState.discard.suit}</div></div>`;
   board.innerHTML += `<div id="drawnCardDisplay"></div>`;
-  board.innerHTML += `<div><button onclick="drawCard()">抽牌</button><button onclick="callCabo()">CABO</button></div>`;
+  board.innerHTML += `<div style="text-align: center; padding: 15px; gap: 10px;">
+    <button onclick="drawCard()" style="margin: 5px;">抽牌</button>
+    <button onclick="callCabo()" style="margin: 5px;">CABO</button>
+  </div>`;
 }
 
 function hideInitialCards() {
@@ -167,4 +172,3 @@ function selectCard(playerIdx, cardIdx) {
 function callCabo() {
   socket.emit('callCabo');
 }
-
