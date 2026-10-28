@@ -6,302 +6,117 @@
 
 body {
   font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px;
+  background: #2d5016;
+  color: #fff;
+  text-align: center;
+  padding: 20px;
 }
 
 .screen {
-  display: none;
-  width: 100%;
-  max-width: 600px;
+  max-width: 500px;
+  margin: 50px auto;
+  background: #1a2e0b;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Main Menu */
-.menu-container {
-  background: white;
-  padding: 40px 30px;
-  border-radius: 15px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.menu-container h1 {
+h1 {
   font-size: 48px;
   margin-bottom: 30px;
-  color: #667eea;
+  color: #90ee90;
 }
 
-.menu-container input {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 15px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 0.3s;
-}
-
-.menu-container input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.menu-container button {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 10px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.menu-container button:hover {
-  background: #764ba2;
-}
-
-/* Room Screen */
-.room-container {
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.room-container h2 {
+h2 {
+  font-size: 32px;
   margin-bottom: 20px;
-  color: #667eea;
+  color: #90ee90;
 }
 
-.room-container h3 {
+h3 {
   margin-top: 20px;
   margin-bottom: 10px;
-  color: #333;
+  font-size: 18px;
 }
 
-#playerList {
-  background: #f5f5f5;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  min-height: 60px;
-}
-
-#playerList > div {
-  padding: 8px;
-  background: white;
-  margin-bottom: 5px;
-  border-radius: 4px;
-  border-left: 4px solid #667eea;
-}
-
-.room-container button {
+input {
   width: 100%;
   padding: 12px;
-  margin-bottom: 10px;
+  margin: 10px 0;
+  border: 2px solid #90ee90;
+  border-radius: 5px;
+  font-size: 16px;
+  background: #0d1a06;
+  color: #fff;
+}
+
+input::placeholder {
+  color: #666;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  background: #90ee90;
+  color: #000;
   border: none;
-  border-radius: 8px;
+  border-radius: 5px;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: 0.3s;
 }
 
-#startGameBtn {
-  background: #667eea;
-  color: white;
-}
-
-#startGameBtn:hover:not(:disabled) {
-  background: #764ba2;
-}
-
-#startGameBtn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-#leaveRoomBtn {
-  background: #ff6b6b;
-  color: white;
-}
-
-#leaveRoomBtn:hover {
-  background: #ee5a52;
-}
-
-/* Game Screen */
-.game-container {
-  background: #2d5016;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  position: relative;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.game-top {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  gap: 20px;
-}
-
-.discard-section, .info-section {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 15px;
-  border-radius: 8px;
-  color: white;
-  text-align: center;
-  flex: 1;
-}
-
-.discard-section h4, .info-section h4 {
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-#discardPile {
-  height: 120px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.game-middle {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.hand-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+button:hover {-content: center;
   gap: 15px;
-  width: 100%;
-  max-width: 300px;
-}
-
-.card-slot {
-  cursor: pointer;
-  transition: transform 0.3s;
-}
-
-.card-slot:hover {
-  transform: scale(1.05);
+  flex-wrap: wrap;
+  margin: 20px 0;
 }
 
 .card {
-  width: 100%;
-  aspect-ratio: 2/3;
-  border: 2px solid #fff;
-  border-radius: 8px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  font-size: 20px;
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-}
-
-.card.face-down {
-  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
-}
-
-.game-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  align-items: center;
-}
-
-#drawnCardDisplay {
-  height: 150px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 100px;
-}
-
-.drawn-card .card {
   width: 80px;
   height: 120px;
-}
-
-.button-group {
+  background: #fff;
+  color: #000;
+  border: 2px solid #333;
+  border-radius: 5px;
   display: flex;
-  gap: 10px;
-  width: 100%;
+  align-items: center;
   justify-content: center;
-}
-
-.button-group button {
-  flex: 1;
-  padding: 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
+  font-weight: bold;
   font-size: 14px;
-  font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: 0.2s;
 }
 
-.button-group button:hover:not(:disabled) {
-  background: #764ba2;
+.card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.button-group button:disabled {
-  background: #666;
-  cursor: not-allowed;
-  opacity: 0.6;
+#playerList {
+  background: #0d1a06;
+  padding: 15px;
+  border-radius: 5px;
+  margin: 15px 0;
 }
 
-#confirmCardsBtn {
-  padding: 10px 20px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  z-index: 10;
+#playerList div {
+  padding: 8px;
+  margin: 5px 0;
+  background: #1a2e0b;
+  border-left: 3px solid #90ee90;
 }
 
-#confirmCardsBtn:hover {
-  background: #45a049;
+#gameControls {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #90ee90;
 }
 
-@media (max-width: 600px) {
-  .menu-container {
-    padding: 30px 20px;
-  }
-
-  .card {
-    font-size: 16px;
-  }
-
-  .button-group {
-    flex-wrap: wrap;
-  }
-
-  .button-group button {
-    flex: 0 1 calc(50% - 5px);
-  }
+p {
+  font-size: 16px;
+  margin: 10px 0;
 }
 
