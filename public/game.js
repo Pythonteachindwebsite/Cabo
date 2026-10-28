@@ -94,9 +94,23 @@ socket.on('playerJoined', (players) => {
 });
 
 // 接收玩家離開通知
-socket.on('playerLeft', (players) => {
-  updatePlayersList(players);
+socket.on('playerJoined', (data) => {
+    players = data.players;
+    updatePlayerList();
+    
+    // 只有 4 個人都加入了，才能按開始
+    const startButton = document.getElementById('startGameBtn');
+    if (startButton) {
+        if (players.length === 4) {
+            startButton.disabled = false;
+            startButton.style.opacity = '1';
+        } else {
+            startButton.disabled = true;
+            startButton.style.opacity = '0.5';
+        }
+    }
 });
+
 
 // 開始遊戲
 startBtn.addEventListener('click', () => {
