@@ -11,12 +11,12 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 20px;
 }
 
 .screen {
   width: 100%;
   max-width: 600px;
-  padding: 20px;
 }
 
 .menu-card {
@@ -35,12 +35,17 @@ body {
 
 .menu-section {
   margin-bottom: 25px;
+  text-align: left;
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
 }
 
 .menu-section h2 {
   color: #333;
-  font-size: 18px;
+  font-size: 16px;
   margin-bottom: 12px;
+  text-align: center;
 }
 
 input {
@@ -74,23 +79,25 @@ button:hover {
   background: #764ba2;
 }
 
+button:active {
+  transform: scale(0.98);
+}
+
 .room-code {
   background: #f0f0f0;
   padding: 15px;
   border-radius: 6px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
   color: #667eea;
   margin-bottom: 20px;
 }
 
 #playerList {
-  text-align: left;
-  background: #f9f9f9;
+  background: white;
   padding: 15px;
   border-radius: 6px;
   color: #333;
-  line-height: 1.8;
 }
 
 #gameBoard {
@@ -117,6 +124,7 @@ button:hover {
   font-weight: bold;
   color: #667eea;
   margin-bottom: 10px;
+  text-align: center;
 }
 
 .player-hand {
@@ -138,6 +146,8 @@ button:hover {
   font-weight: bold;
   cursor: pointer;
   border: 2px solid transparent;
+  font-size: 12px;
+  text-align: center;
 }
 
 .card.hidden {
@@ -146,6 +156,7 @@ button:hover {
 
 .card:hover {
   border-color: #fff;
+  transform: scale(1.05);
 }
 
 .discard-section {
@@ -159,26 +170,10 @@ button:hover {
   font-weight: bold;
   color: #667eea;
   margin-bottom: 10px;
+  font-size: 14px;
 }
 
 #drawnCardDisplay {
-  background: white;
-  padding: 15px;
-  border-radius: 6px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-}
-
-#drawnCardDisplay .card {
-  margin-bottom: 10px;
-}
-
-#drawnCardDisplay button {
-  width: auto;
-  padding: 10px 20px;
-  font-size: 12px;
+  min-height: 50px;
 }
 
