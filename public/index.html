@@ -16,40 +16,42 @@
 
   <div id="joinRoomMenu" class="container hidden">
     <h1>加入房間</h1>
-    <input type="text" id="roomCode" placeholder="輸入房間代碼">
-    <input type="text" id="playerNameJoin" placeholder="輸入你的名字">
+    <input type="text" id="roomCode" placeholder="房間代碼">
+    <input type="text" id="playerNameJoin" placeholder="你的名字">
     <button onclick="joinRoom()">加入</button>
     <button onclick="backToMenu()">返回</button>
   </div>
 
   <div id="waitingRoom" class="container hidden">
-    <h1>房間代碼: <span id="roomCodeDisplay"></span></h1>
+    <h1>房間: <span id="roomCodeDisplay"></span></h1>
     <div id="playerList"></div>
     <button id="startButton" onclick="startGame()" disabled>開始遊戲</button>
-    <button onclick="leaveRoom()">離開房間</button>
+    <button onclick="leaveRoom()">離開</button>
   </div>
 
   <div id="gameScreen" class="container hidden">
-    <div class="game-info">
-      <div>回合: <span id="roundNumber"></span></div>
-      <div>現在輪到: <span id="currentPlayer"></span></div>
-    </div>
-    
-    <div id="playersDisplay"></div>
-    
-    <div class="game-actions">
-      <div>棄牌堆頂: <span id="discardTop"></span></div>
-      <button onclick="drawFromDeck()">從牌堆抽牌</button>
-      <button onclick="drawFromDiscard()">從棄牌堆抽牌</button>
+    <div class="info-bar">
+      <span>回合 <span id="roundNumber">1</span></span>
+      <span>輪到: <span id="currentPlayer"></span></span>
+      <span>牌堆剩: <span id="deckCount">0</span></span>
     </div>
 
-    <div id="myCards" class="my-cards">
+    <div class="discard-area">
+      <div>棄牌堆頂: <span id="discardTop">-</span></div>
+    </div>
+
+    <div class="action-buttons">
+      <button id="drawButton" onclick="drawFromDeck()">從牌堆抽牌</button>
+      <button id="discardButton" onclick="discardCard()" disabled>棄掉抽到的牌</button>
+    </div>
+
+    <div class="my-cards">
       <h3>我的牌</h3>
-      <div id="cardGrid"></div>
+      <div id="cardGrid" class="card-grid"></div>
     </div>
 
-    <div class="game-actions">
-      <button onclick="endTurn()">結束回合</button>
+    <div class="action-buttons">
+      <button id="endTurnButton" onclick="endTurn()">結束回合</button>
       <button onclick="leaveRoom()">離開遊戲</button>
     </div>
   </div>
@@ -58,3 +60,4 @@
   <script src="game.js"></script>
 </body>
 </html>
+
