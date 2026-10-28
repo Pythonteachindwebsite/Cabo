@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,59 +7,36 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Main Menu -->
   <div id="menu" class="screen">
-    <div class="menu-container">
-      <h1>CABO</h1>
-      <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
-      <button id="createRoomBtn">Create Room</button>
-      <button id="joinRoomBtn">Join Room</button>
-    </div>
+    <h1>CABO</h1>
+    <input type="text" id="playerName" placeholder="Your Name">
+    <input type="text" id="roomCode" placeholder="Room Code (optional)">
+    <button id="createRoomBtn">Create/Join Room</button>
   </div>
 
-  <!-- Room Screen -->
-  <div id="room" class="screen">
-    <div class="room-container">
-      <h2>Room: <span id="roomCodeDisplay"></span></h2>
-      <h3>Players</h3>
-      <div id="playerList"></div>
-      <button id="startGameBtn" disabled>Start Game</button>
-      <button id="leaveRoomBtn">Leave Room</button>
-    </div>
+  <div id="waitingRoom" class="screen" style="display:none;">
+    <h2>Waiting Room</h2>
+    <div id="playerList"></div>
+    <p>Players: <span id="playerCount">0/4</span></p>
+    <button id="startGameBtn">Start Game</button>
   </div>
 
-  <!-- Game Screen -->
-  <div id="game" class="screen">
-    <div class="game-container">
-      <div class="game-top">
-        <div class="discard-section">
-          <h4>Discard Pile</h4>
-          <div id="discardPile"></div>
-        </div>
-        <div class="info-section">
-          <p id="currentPlayerDisplay">Current: --</p>
-        </div>
-      </div>
+  <div id="game" class="screen" style="display:none;">
+    <h2>CABO Game</h2>
+    <p>Current Player: <span id="currentPlayer"></span></p>
+    <p>Discard Pile Top: <span id="discardTop"></span></p>
+    <p>Drawn Card: <span id="drawnCard" style="display:none;"></span></p>
+    
+    <h3>My Hand</h3>
+    <div id="myHand" class="hand"></div>
 
-      <div class="game-middle">
-        <div id="handContainer" class="hand-container"></div>
-      </div>
+    <button id="confirmBtn">Confirm Cards</button>
 
-      <div class="game-bottom">
-        <div id="drawnCardDisplay" class="drawn-card"></div>
-        <div class="button-group">
-          <button id="drawCardBtn">Draw Card</button>
-          <button id="discardBtn" disabled>Discard</button>
-          <button id="caboBton">Call CABO</button>
-        </div>
-      </div>
-
-      <button id="confirmCardsBtn" style="position: absolute; top: 20px; right: 20px;">Confirm Cards</button>
-    </div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="game.js"></script>
+    <div id="gameControls" style="display:none;">
+      <button id="drawBtn">Draw Card</button>
+      <button id="discardBtn">Discard</button>
+      <button id="callCABOBtn">Call CABO</button>
+      <button id="game.js"></script>
 </body>
 </html>
 
