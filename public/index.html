@@ -7,34 +7,66 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="mainMenu" class="screen">
-    <div class="menu-card">
+  <!-- 主菜單 -->
+  <div id="mainMenu" class="screen active">
+    <div class="menu-container">
       <h1>CABO</h1>
       
-      <div class="menu-section">
-        <h2>创建房间</h2>
-        <input type="text" id="playerNameInput" placeholder="输入你的名字">
-        <button id="createBtn">创建</button>
+      <div class="section">
+        <h2>創建房間</h2>
+        <input type="text" id="playerNameInput" placeholder="輸入你的名字" maxlength="15">
+        <button id="createBtn">創建房間</button>
       </div>
 
-      <div class="menu-section">
-        <h2>加入房间</h2>
-        <input type="text" id="roomCodeInput" placeholder="房间代码">
-        <input type="text" id="playerNameInput2" placeholder="输入你的名字">
-        <button id="joinBtn">加入</button>
+      <div class="section">
+        <h2>加入房間</h2>
+        <input type="text" id="roomCodeInput" placeholder="房間代碼" maxlength="6">
+        <input type="text" id="playerNameInput2" placeholder="輸入你的名字" maxlength="15">
+        <button id="joinBtn">加入房間</button>
       </div>
     </div>
   </div>
 
-  <div id="waitingScreen" class="screen" style="display: none;">
-    <div class="menu-card">
-      <h1>等待游戏开始</h1>
-      <div id="roomCodeDisplay" class="room-code"></div>
-      <div id="playerList"></div>
+  <!-- 等待菜單 -->
+  <div id="waitingScreen" class="screen">
+    <div class="menu-container">
+      <h1>等待遊戲開始</h1>
+      <div id="roomCodeDisplay" class="info-box"></div>
+      <div id="playerList" class="player-list"></div>
+      <button id="startBtn" style="display: none; margin-top: 20px;">開始遊戲</button>
     </div>
   </div>
 
-  <div id="gameBoard" class="screen" style="display: none;"></div>
+  <!-- 遊戲畫面 -->
+  <div id="gameBoard" class="screen game-screen">
+    <div class="top-section">
+      <div class="game-info" id="gameInfo"></div>
+    </div>
+
+    <div class="middle-section">
+      <div id="opponentPlayers"></div>
+    </div>
+
+    <div class="bottom-section">
+      <div class="discard-area">
+        <div class="discard-label">棄牌堆</div>
+        <div id="discardCard" class="card-display"></div>
+      </div>
+
+      <div class="player-hand-section">
+        <div class="hand-label">你的牌</div>
+        <div id="playerHand" class="hand-display"></div>
+      </div>
+
+      <div id="drawnCardSection" class="drawn-card-section"></div>
+
+      <div class="button-area">
+        <button id="drawCardBtn">抽牌</button>
+        <button id="caboBtn">CABO</button>
+        <button id="endTurnBtn" style="display: none;">結束回合</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script src="game.js"></script>
