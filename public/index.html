@@ -1,5 +1,6 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,86 +8,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Lobby Section -->
-  <section id="lobbySectionId" class="section">
-    <div class="container">
-      <h1 class="header">
-        <img src="/IMG_0872.jpeg" alt="CABO" class="header-image">
-      </h1>
-      <div class="form-group">
-        <input type="text" id="playerNameInput" placeholder="Enter your name" class="input">
-        <button onclick="createRoom()" class="btn">Create Room</button>
-      </div>
-      <div class="divider">OR</div>
-      <div class="form-group">
-        <input type="text" id="roomCodeInput" placeholder="Room code" class="input">
-        <input type="text" id="playerNameInput2" placeholder="Enter your name" class="input">
-        <button onclick="joinRoom()" class="btn">Join Room</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Waiting Section -->
-  <section id="waitingSectionId" class="section" style="display: none;">
-    <div class="container">
-      <h1 class="header">
-        <img src="/IMG_0872.jpeg" alt="CABO" class="header-image">
-      </h1>
-      <div class="waiting-content">
-        <h2>Room Code: <span id="roomCodeDisplayId"></span></h2>
-        <h3>Players in room:</h3>
-        <ul id="playerListId" class="player-list"></ul>
-        <button id="startGameButtonId" onclick="startGame()" class="btn btn-primary" style="display: none;">Start Game</button>
-        <p class="waiting-text">Waiting for host to start...</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Game Section -->
-  <section id="gameSectionId" class="section" style="display: none;">
-    <div class="container">
-      <h1 class="header">
-        <img src="/IMG_0872.jpeg" alt="CABO" class="header-image">
-      </h1>
-
-      <div class="game-info">
-        <p id="turnInfoId">Current Turn: ...</p>
-      </div>
-
-      <div class="game-board">
-        <div class="pile-section">
-          <h3>Discard Pile</h3>
-          <div id="discardPileId" class="pile"></div>
-        </div>
-
-        <div class="drawn-card-section">
-          <div id="drawnCardId" class="drawn-card"></div>
-          <div id="swapOptionsId" class="swap-options" style="display: none;">
-            <p>Swap with:</p>
-            <div class="swap-buttons" id="swapButtonsId"></div>
-            <button onclick="discardDrawnCard()" class="btn btn-discard">Discard</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="opponents-section">
-        <h3>Opponents</h3>
-        <div id="opponentsId" class="opponents"></div>
-      </div>
-
-      <div class="actions-section">
-        <button id="drawCardButtonId" onclick="drawCard()" class="btn">Draw Card</button>
-        <button id="takeDiscardButtonId" onclick="takeDiscard()" class="btn">Take Discard</button>
-      </div>
-
-      <div class="hand-section">
-        <h3>Your Hand</h3>
-        <div id="selfHandId" class="self-hand"></div>
-      </div>
-    </div>
-  </section>
-
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <div id="app"></div>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
