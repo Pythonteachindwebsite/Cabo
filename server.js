@@ -1,332 +1,333 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const path = require('path');
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-const rooms = {};
-const players = {};
+const rooms = {}; // { roomCode: { players: [...], gameState, deck, discard, ... } }
 
-io.on('connection', (socket) => {
-  socket.on('createRoom', (playerName) => {
-    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    rooms[roomCode] = {
-      code: roomCode,
-      players: [{ id: socket.id, name: playerName, ready: false }],
-      gameState: 'waiting',
-      currentRound: 1,
-      currentPlayerIndex: 0,
-      deck: [],
-      discardPile: [],
-      playerCards: {},
-      pairedCards: {},
-      scores: {},
-      drawnCard: null,
-      waitingForSwap: {}
-    };
-    
-    players[socket.id] = { room: roomCode, name: playerName, index: 0 };
-    socket.join(roomCode);
-    socket.emit('roomCreated', roomCode);
-    io.to(roomCode).emit('playerJoined', rooms[roomCode].players);
-  });
-
-  socket.on('joinRoom', (roomCode, playerName) => {
-    if (!rooms[roomCode]) {
-      socket.emit('error', '房間不存在');
-      return;
-    }
-    if (rooms[roomCode].players.length >= 4) {
-      socket.emit('error', '房間已滿');
-      return;
-    }
-
-    const playerIndex = rooms[roomCode].players.length;
-    rooms[roomCode].players.push({ id: socket.id, name: playerName, ready: false });
-    players[socket.id] = { room: roomCode, name: playerName, index: playerIndex };
-    
-    socket.join(roomCode);
-    io.to(roomCode).emit('playerJoined', rooms[roomCode].players);
-  });
-
-  socket.on('startGame', () => {
-    const room = rooms[players[socket.id].room];
-    if (!room || room.players.length < 2) {
-      socket.emit('error', '至少需要2名玩家');
-      return;
-    }
-
-    room.gameState = 'playing';
-    initializeGame(room);
-    
-    io.to(room.code).emit('gameStarted', {
-      players: room.players,
-      playerCards: room.playerCards,
-      currentPlayerIndex: 0,
-      discardPile: room.discardPile,
-      deckCount: room.deck.length
-    });
-  });
-
-  socket.on('drawCard', () => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    const playerIndex = players[socket.id].index;
-    const isCurrentPlayer = room.currentPlayerIndex === playerIndex;
-
-    if (!isCurrentPlayer) {
-      socket.emit('error', '不是你的回合');
-      return;
-    }
-
-    if (room.deck.length === 0) {
-      refillDeck(room);
-    }
-
-    const card = room.deck.pop();
-    room.drawnCard = { card, playerIndex };
-
-    socket.emit('drawnCard', card);
-    io.to(roomCode).emit('gameUpdate', { 
-      deckCount: room.deck.length,
-      message: `${room.players[playerIndex].name} 從牌堆抽牌`
-    });
-  });
-
-  socket.on('discardDrawnCard', () => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    
-    if (!room.drawnCard) {
-      socket.emit('error', '沒有抽到牌');
-      return;
-    }
-
-    room.discardPile.push(room.drawnCard.card);
-    room.drawnCard = null;
-
-    io.to(roomCode).emit('gameUpdate', { 
-      discardPile: room.discardPile,
-      message: '牌被棄掉'
-    });
-  });
-
-  socket.on('replaceCard', (cardIndex) => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    const playerIndex = players[socket.id].index;
-
-    if (!room.drawnCard) {
-      socket.emit('error', '沒有抽到牌');
-      return;
-    }
-
-    const oldCard = room.playerCards[playerIndex][cardIndex];
-    room.playerCards[playerIndex][cardIndex] = room.drawnCard.card;
-    room.discardPile.push(oldCard);
-    room.drawnCard = null;
-
-    io.to(roomCode).emit('gameUpdate', { 
-      playerCards: room.playerCards,
-      discardPile: room.discardPile,
-      message: `${room.players[playerIndex].name} 替換第 ${cardIndex + 1} 張牌`
-    });
-  });
-
-  socket.on('viewOwnCard', (cardIndex) => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    const playerIndex = players[socket.id].index;
-    const card = room.playerCards[playerIndex][cardIndex];
-
-    socket.emit('cardViewed', { index: cardIndex, card });
-  });
-
-  socket.on('activateSpecialAbility', (abilityCard, targetPlayerIndex, targetCardIndex) => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    const playerIndex = players[socket.id].index;
-    const cardRank = abilityCard.rank;
-
-    if (['7', '8'].includes(cardRank)) {
-      // 7/8: 查看自己的牌
-      const card = room.playerCards[playerIndex][targetCardIndex];
-      socket.emit('cardViewed', { index: targetCardIndex, card });
-    } 
-    else if (['9', '10'].includes(cardRank)) {
-      // 9/10: 查看其他玩家的牌
-      const card = room.playerCards[targetPlayerIndex][targetCardIndex];
-      socket.emit('cardViewed', { 
-        player: room.players[targetPlayerIndex].name,
-        index: targetCardIndex, 
-        card 
-      });
-    } 
-    else if (['J', 'Q'].includes(cardRank)) {
-      // J/Q: 盲交換
-      const temp = room.playerCards[playerIndex][targetCardIndex];
-      room.playerCards[playerIndex][targetCardIndex] = room.playerCards[targetPlayerIndex][targetCardIndex];
-      room.playerCards[targetPlayerIndex][targetCardIndex] = temp;
-
-      io.to(roomCode).emit('gameUpdate', { 
-        playerCards: room.playerCards,
-        message: `${room.players[playerIndex].name} 與 ${room.players[targetPlayerIndex].name} 盲交換牌張`
-      });
-    }
-    else if (['K', 'A'].includes(cardRank)) {
-      // K/A: 查看後決定交換
-      const otherCard = room.playerCards[targetPlayerIndex][targetCardIndex];
-      room.waitingForSwap[socket.id] = {
-        playerIndex,
-        targetPlayerIndex,
-        targetCardIndex,
-        ownCardIndex: targetCardIndex,
-        otherCard
-      };
-
-      socket.emit('swapDecision', { 
-        card: otherCard,
-        player: room.players[targetPlayerIndex].name
-      });
-    }
-  });
-
-  socket.on('confirmSwap', (doSwap) => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    const swapData = room.waitingForSwap[socket.id];
-
-    if (!swapData) {
-      socket.emit('error', '交換資料不存在');
-      return;
-    }
-
-    if (doSwap) {
-      const temp = room.playerCards[swapData.playerIndex][swapData.ownCardIndex];
-      room.playerCards[swapData.playerIndex][swapData.ownCardIndex] = 
-        room.playerCards[swapData.targetPlayerIndex][swapData.targetCardIndex];
-      room.playerCards[swapData.targetPlayerIndex][swapData.targetCardIndex] = temp;
-    }
-
-    delete room.waitingForSwap[socket.id];
-
-    io.to(roomCode).emit('gameUpdate', { 
-      playerCards: room.playerCards,
-      message: doSwap ? '交換完成' : '放棄交換'
-    });
-  });
-
-  socket.on('pairCards', (pairIndices) => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-    const playerIndex = players[socket.id].index;
-
-    pairIndices.forEach(([idx1, idx2]) => {
-      const card1 = room.playerCards[playerIndex][idx1];
-      const card2 = room.playerCards[playerIndex][idx2];
-
-      if (card1 && card2 && getCardRank(card1) === getCardRank(card2)) {
-        // 配對成功
-        const discardCard = room.discardPile[room.discardPile.length - 1];
-        if (getCardRank(card1) === getCardRank(discardCard)) {
-          // 與棄牌堆配對
-          room.playerCards[playerIndex][idx1] = null;
-          room.playerCards[playerIndex][idx2] = null;
-        }
-      }
-    });
-
-    io.to(roomCode).emit('gameUpdate', { 
-      playerCards: room.playerCards,
-      message: `${room.players[playerIndex].name} 完成配對`
-    });
-  });
-
-  socket.on('endTurn', () => {
-    const roomCode = players[socket.id].room;
-    const room = rooms[roomCode];
-
-    room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
-
-    io.to(roomCode).emit('turnChanged', {
-      currentPlayerIndex: room.currentPlayerIndex,
-      currentPlayer: room.players[room.currentPlayerIndex].name
-    });
-  });
-
-  socket.on('leaveRoom', () => {
-    const roomCode = players[socket.id]?.room;
-    if (roomCode && rooms[roomCode]) {
-      rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== socket.id);
-      if (rooms[roomCode].players.length === 0) {
-        delete rooms[roomCode];
-      } else {
-        io.to(roomCode).emit('playerLeft', rooms[roomCode].players);
-      }
-    }
-    delete players[socket.id];
-  });
-
-  socket.on('disconnect', () => {
-    const roomCode = players[socket.id]?.room;
-    if (roomCode && rooms[roomCode]) {
-      rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== socket.id);
-      if (rooms[roomCode].players.length === 0) {
-        delete rooms[roomCode];
-      } else {
-        io.to(roomCode).emit('playerLeft', rooms[roomCode].players);
-      }
-    }
-    delete players[socket.id];
-  });
-});
-
-function initializeGame(room) {
-  room.deck = createDeck();
-  const topCard = room.deck.pop();
-  room.discardPile = [topCard];
-
-  room.playerCards = {};
-  room.pairedCards = {};
-  room.scores = {};
-
-  room.players.forEach((player, index) => {
-    room.playerCards[index] = [];
-    room.pairedCards[index] = [];
-    room.scores[index] = 0;
-
-    for (let i = 0; i < 4; i++) {
-      room.playerCards[index].push(room.deck.pop());
-    }
-  });
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 function createDeck() {
-  const suits = ['♠', '♥', '♦', '♣'];
-  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const values = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
   const deck = [];
-
-  for (let suit of suits) {
-    for (let rank of ranks) {
-      deck.push({ rank, suit });
+  for (let i = 0; i < 4; i++) {
+    for (let val of values) {
+      deck.push(val);
     }
   }
-
   return deck.sort(() => Math.random() - 0.5);
 }
 
-function refillDeck(room) {
-  const lastCard = room.discardPile.pop();
-  room.deck = room.discardPile.sort(() => Math.random() - 0.5);
-  room.discardPile = [lastCard];
+function getCardValue(card) {
+  if (card === '0') return 0;
+  if (card >= '1' && card <= '9') return parseInt(card);
+  if (card === '10') return 10;
+  if (card === 'J') return 11;
+  if (card === 'Q') return 12;
+  if (card === 'K') return 13;
+  if (card === 'A') return 1;
+  return 0;
 }
 
-function getCardRank(card) {
-  if (!card) return null;
-  return card.rank;
+function initializeGame(roomCode) {
+  const room = rooms[roomCode];
+  const deck = createDeck();
+  
+  const playerCount = room.players.length;
+  const hand = [];
+  
+  for (let i = 0; i < playerCount; i++) {
+    const playerCards = [];
+    for (let j = 0; j < 4; j++) {
+      playerCards.push({ value: deck.pop(), faceUp: true });
+    }
+    hand.push(playerCards);
+  }
+  
+  room.gameState = {
+    phase: 'viewing', // viewing -> playing
+    currentPlayerIndex: 0,
+    hand: hand,
+    deck: deck,
+    discard: [],
+    scores: Array(playerCount).fill(0),
+    roundScores: Array(playerCount).fill(0),
+    caboCalled: null,
+    gameOver: false
+  };
+  
+  // Send initial view to each player (show own cards for 3 seconds, then face down)
+  room.players.forEach((player, idx) => {
+    io.to(player.socketId).emit('gameInitialized', {
+      playerIndex: idx,
+      hand: room.gameState.hand[idx],
+      gameState: room.gameState,
+      allHands: room.gameState.hand.map((h, i) => i === idx ? h : h.map(() => ({ value: null, faceUp: false })))
+    });
+  });
+  
+  setTimeout(() => {
+    room.gameState.hand.forEach((playerHand) => {
+      playerHand.forEach((card) => {
+        card.faceUp = false;
+      });
+    });
+    
+    room.gameState.phase = 'playing';
+    broadcastGameState(roomCode);
+  }, 3000);
+}
+
+function broadcastGameState(roomCode) {
+  const room = rooms[roomCode];
+  if (!room) return;
+  
+  room.players.forEach((player, idx) => {
+    const publicHand = room.gameState.hand.map((h, i) => {
+      if (i === idx) {
+        return h; // Own hand visible to self
+      } else {
+        return h.map(() => ({ value: null, faceUp: false })); // Other players' hands hidden
+      }
+    });
+    
+    io.to(player.socketId).emit('gameState', {
+      gameState: room.gameState,
+      allHands: publicHand,
+      playerIndex: idx
+    });
+  });
+}
+
+function handlePairing(roomCode, playerIndex) {
+  const room = rooms[roomCode];
+  const hand = room.gameState.hand[playerIndex];
+  
+  // Try to pair all possible combinations
+  let foundPair = false;
+  
+  // Check near row (indices 0, 1)
+  if (hand[0].value === hand[1].value) {
+    hand[0] = { value: null, faceUp: false };
+    hand[1] = { value: null, faceUp: false };
+    foundPair = true;
+  }
+  
+  // Check far row (indices 2, 3)
+  if (hand[2].value === hand[3].value) {
+    hand[2] = { value: null, faceUp: false };
+    hand[3] = { value: null, faceUp: false };
+    foundPair = true;
+  }
+  
+  // If found pair, check again
+  if (foundPair) {
+    setTimeout(() => handlePairing(roomCode, playerIndex), 500);
+  }
+}
+
+io.on('connection', (socket) => {
+  socket.on('createRoom', (playerName, callback) => {
+    const roomCode = generateRoomCode();
+    rooms[roomCode] = {
+      players: [{ socketId: socket.id, name: playerName }],
+      gameState: null
+    };
+    socket.join(roomCode);
+    callback(roomCode);
+  });
+  
+  socket.on('joinRoom', (roomCode, playerName, callback) => {
+    if (!rooms[roomCode]) {
+      callback({ success: false, message: 'Room not found' });
+      return;
+    }
+    
+    if (rooms[roomCode].players.length >= 4) {
+      callback({ success: false, message: 'Room is full' });
+      return;
+    }
+    
+    rooms[roomCode].players.push({ socketId: socket.id, name: playerName });
+    socket.join(roomCode);
+    
+    io.to(roomCode).emit('playersUpdated', rooms[roomCode].players);
+    
+    if (rooms[roomCode].players.length === 4) {
+      initializeGame(roomCode);
+    }
+    
+    callback({ success: true });
+  });
+  
+  socket.on('startGame', (roomCode) => {
+    if (rooms[roomCode] && !rooms[roomCode].gameState) {
+      initializeGame(roomCode);
+    }
+  });
+  
+  socket.on('drawCard', (roomCode, playerIndex) => {
+    const room = rooms[roomCode];
+    if (!room || room.gameState.phase !== 'playing') return;
+    
+    if (room.gameState.deck.length === 0) {
+      room.gameState.deck = room.gameState.discard.sort(() => Math.random() - 0.5);
+      room.gameState.discard = [];
+    }
+    
+    const drawnCard = room.gameState.deck.pop();
+    const drawnCardObj = { value: drawnCard, faceUp: true };
+    
+    // Broadcast drawn card to all players
+    io.to(roomCode).emit('cardDrawn', {
+      playerIndex: playerIndex,
+      drawnCard: drawnCardObj
+    });
+    
+    // Wait for player to choose
+    socket.on('exchangeCard', (chosenSlot) => {
+      const oldCard = room.gameState.hand[playerIndex][chosenSlot];
+      room.gameState.hand[playerIndex][chosenSlot] = { value: drawnCard, faceUp: false };
+      room.gameState.discard.push(oldCard.value);
+      
+      handlePairing(roomCode, playerIndex);
+      
+      room.gameState.currentPlayerIndex = (room.gameState.currentPlayerIndex + 1) % room.gameState.hand.length;
+      broadcastGameState(roomCode);
+    });
+  });
+  
+  socket.on('useAbility7Or8', (roomCode, playerIndex) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    const hand = room.gameState.hand[playerIndex];
+    io.to(socket.id).emit('abilityView', {
+      cards: hand,
+      message: 'You can view your own cards'
+    });
+  });
+  
+  socket.on('useAbility9Or10', (roomCode, playerIndex, targetPlayerIndex) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    const targetHand = room.gameState.hand[targetPlayerIndex];
+    io.to(socket.id).emit('abilityView', {
+      cards: targetHand,
+      message: `View ${room.players[targetPlayerIndex].name}'s cards`
+    });
+  });
+  
+  socket.on('useAbilityJOrQ', (roomCode, playerIndex, targetPlayerIndex, targetSlot) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    const playerCard = room.gameState.hand[playerIndex][targetSlot];
+    const targetCard = room.gameState.hand[targetPlayerIndex][targetSlot];
+    
+    room.gameState.hand[playerIndex][targetSlot] = targetCard;
+    room.gameState.hand[targetPlayerIndex][targetSlot] = playerCard;
+    
+    handlePairing(roomCode, playerIndex);
+    handlePairing(roomCode, targetPlayerIndex);
+    
+    room.gameState.currentPlayerIndex = (room.gameState.currentPlayerIndex + 1) % room.gameState.hand.length;
+    broadcastGameState(roomCode);
+  });
+  
+  socket.on('useAbilityKOrA', (roomCode, playerIndex, targetPlayerIndex, targetSlot) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    const targetCard = room.gameState.hand[targetPlayerIndex][targetSlot];
+    
+    io.to(socket.id).emit('abilityView', {
+      cards: [targetCard],
+      message: 'View this card. Choose to swap?',
+      allowSwap: true,
+      swapData: { targetPlayerIndex, targetSlot }
+    });
+    
+    socket.on('confirmKASwap', (swapData) => {
+      const playerCard = room.gameState.hand[playerIndex][targetSlot];
+      room.gameState.hand[playerIndex][targetSlot] = targetCard;
+      room.gameState.hand[targetPlayerIndex][targetSlot] = playerCard;
+      
+      handlePairing(roomCode, playerIndex);
+      handlePairing(roomCode, targetPlayerIndex);
+      
+      room.gameState.currentPlayerIndex = (room.gameState.currentPlayerIndex + 1) % room.gameState.hand.length;
+      broadcastGameState(roomCode);
+    });
+  });
+  
+  socket.on('callCabo', (roomCode, playerIndex) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    room.gameState.caboCalled = playerIndex;
+    
+    // Check if all cards paired
+    let allPaired = true;
+    room.gameState.hand[playerIndex].forEach((card) => {
+      if (card.value !== null) allPaired = false;
+    });
+    
+    if (allPaired) {
+      endRound(roomCode, playerIndex);
+    } else {
+      room.gameState.currentPlayerIndex = (room.gameState.currentPlayerIndex + 1) % room.gameState.hand.length;
+      broadcastGameState(roomCode);
+    }
+  });
+  
+  socket.on('disconnect', () => {
+    Object.keys(rooms).forEach((roomCode) => {
+      rooms[roomCode].players = rooms[roomCode].players.filter((p) => p.socketId !== socket.id);
+      if (rooms[roomCode].players.length === 0) {
+        delete rooms[roomCode];
+      }
+    });
+  });
+});
+
+function endRound(roomCode, winnerIndex) {
+  const room = rooms[roomCode];
+  const hand = room.gameState.hand;
+  
+  hand.forEach((playerHand, idx) => {
+    let score = 0;
+    playerHand.forEach((card) => {
+      if (card.value !== null) {
+        score += getCardValue(card.value);
+      }
+    });
+    room.gameState.roundScores[idx] = score;
+    room.gameState.scores[idx] += score;
+  });
+  
+  io.to(roomCode).emit('roundEnded', {
+    scores: room.gameState.scores,
+    roundScores: room.gameState.roundScores
+  });
+  
+  const gameOver = room.gameState.scores.some((s) => s >= 100);
+  if (gameOver) {
+    room.gameState.gameOver = true;
+    io.to(roomCode).emit('gameOver', { scores: room.gameState.scores });
+  } else {
+    setTimeout(() => initializeGame(roomCode), 3000);
+  }
 }
 
 server.listen(3000, () => console.log('Server running on port 3000'));
+
