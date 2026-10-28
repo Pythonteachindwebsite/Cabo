@@ -1,71 +1,36 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cabo Game</title>
-    <link rel="stylesheet" href="style.css">
+  <title>CABO</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- 主畫面 -->
-        <div id="mainScreen" class="screen">
-            <div class="container">
-                <h1><img src="/IMG_0872.jpeg" alt="Cabo Logo" class="logo-img"> Cabo</h1>
-                <button id="createBtn" class="btn">建立房間</button>
-                <button id="joinBtn" class="btn">加入房間</button>
-            </div>
-        </div>
+  <div class="container">
+    <h1><img src="/IMG_0872.jpeg" alt=""> CABO</h1>
 
-        <!-- 建立房間畫面 -->
-        <div id="createScreen" class="screen hidden">
-            <div class="container">
-                <h2>建立房間</h2>
-                <input type="text" id="playerNameCreate" placeholder="輸入你的名字">
-                <button id="confirmCreateBtn" class="btn">確認</button>
-                <button id="backBtn" class="btn btn-secondary">返回</button>
-            </div>
-        </div>
-
-        <!-- 加入房間畫面 -->
-        <div id="joinScreen" class="screen hidden">
-            <div class="container">
-                <h2>加入房間</h2>
-                <input type="text" id="roomCodeInput" placeholder="輸入房間代碼">
-                <input type="text" id="playerNameJoin" placeholder="輸入你的名字">
-                <button id="confirmJoinBtn" class="btn">確認</button>
-                <button id="backBtn2" class="btn btn-secondary">返回</button>
-            </div>
-        </div>
-
-        <!-- 房間等待畫面 -->
-        <div id="roomScreen" class="screen hidden">
-            <div class="container">
-                <h2>房間等待中</h2>
-                <div class="room-code-display">
-                    <p>房間代碼: <span id="roomCodeDisplay" class="room-code">—</span></p>
-                </div>
-                <div class="players-section">
-                    <h3>玩家列表</h3>
-                    <ul id="playersList"></ul>
-                </div>
-                <p id="statusMessage" class="status-message">等待更多玩家加入...</p>
-                <button id="leaveBtn" class="btn btn-secondary">退串</button>
-            </div>
-        </div>
-
-        <!-- 遊戲畫面 -->
-        <div id="gameScreen" class="screen hidden">
-            <div class="container">
-                <h2>遊戲進行中</h2>
-                <p id="gameStatus">遊戲開始！</p>
-                <button id="backToMainBtn" class="btn btn-secondary">回到主畫面</button>
-            </div>
-        </div>
+    <div id="joinSection">
+      <input type="text" id="playerNameInput" placeholder="Your name">
+      <input type="text" id="roomCodeInput" placeholder="Room code (to join)">
+      <button onclick="createRoom()">Create Room</button>
+      <button onclick="joinRoom()">Join Room</button>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="game.js"></script>
+    <div id="roomPanel" style="display:none;">
+      <h2>Room Code: <span id="roomCode"></span></h2>
+      <div id="playerList"></div>
+      <button id="startGameBtn" onclick="startGame()" disabled>Start Game</button>
+    </div>
+
+    <div id="gamePanel" style="display:none;">
+      <div id="handContainer"></div>
+      <div id="discardPile"></div>
+      <div id="deckRemaining"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
 
