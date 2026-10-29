@@ -3,40 +3,220 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CABO Card Game</title>
+  <title>CABO 紙牌遊戲</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="menu" class="screen">
-    <h1>CABO</h1>
-    <input type="text" id="playerName" placeholder="Your Name">
-    <input type="text" id="roomCode" placeholder="Room Code (optional)">
-    <button id="createRoomBtn">Create/Join Room</button>
+  <div id="mainScreen" class="screen">
+    <h1>CABO 紙牌遊戲</h1>
+    <div class="container">
+      <div>
+        <h2>建立房間</h2>
+        <input type="text" id="playerName" placeholder="輸入玩家名稱">
+        <button onclick="createRoom()">建立房間</button>
+      </div>
+      <div>
+        <h2>加入房間</h2>
+        <input type="text" id="joinRoomCode" placeholder="房間代碼">
+        <input type="text" id="joinPlayerName" placeholder="輸入玩家名稱">
+        <button onclick="joinRoom()">加入房間</button>
+      </div>
+    </div>
   </div>
 
-  <div id="waitingRoom" class="screen" style="display:none;">
-    <h2>Waiting Room</h2>
-    <div id="playerList"></div>
-    <p>Players: <span id="playerCount">0/4</span></p>
-    <button id="startGameBtn">Start Game</button>
+  <div id="roomScreen" class="screen" style="display:none;">
+    <h1>房間 <span id="roomCode"></span></h1>
+    <div id="playersList" class="playersList"></div>
+    <button id="startGameBtn" onclick="startGame()" style="display:none;">開始遊戲</button>
+    <button onclick="leaveRoom()">離開房間</button>
   </div>
 
-  <div id="game" class="screen" style="display:none;">
-    <h2>CABO Game</h2>
-    <p>Current Player: <span id="currentPlayer"></span></p>
-    <p>Discard Pile Top: <span id="discardTop"></span></p>
-    <p>Drawn Card: <span id="drawnCard" style="display:none;"></span></p>
-    
-    <h3>My Hand</h3>
-    <div id="myHand" class="hand"></div>
+  <div id="gameScreen" class="screen" style="display:none;">
+    <div id="turnInfo" class="turnInfo"></div>
+    <div class="gameContainer">
+      <div class="discardArea">
+        <p>棄牌堆</p>
+        <div id="discardTop" class="card"></div>
+      </div>
+      <div id="yourHand" class="handArea"></div>
+      <div id="drawnCard" class="card" style="display:none;"></div>
+    </div>
+    <div class="buttonArea">
+      <button id="confirmFlipBtn" onclick="confirmCardFlip()" style="display:none;">確認翻卡</button>
+      <button onclick="drawCard()">抽卡</button>
+      <button onclick="discardCard()">出卡</button>
+      <button onclick="callCabo()">叫 CABO</button>
+      <button onclick="leaveRoom()">離開遊戲</button>
+      <button onclick="exitGame()">退出</button>
+    </div>
+    <div id="gameLog" class="gameLog"></div>
+  </div>
 
-    <button id="confirmBtn">Confirm Cards</button>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.font-family: Arial, sans-serif;
+  background-color: #2d5016;
+  color: white;
+  padding: 20px;
+}
 
-    <div id="gameControls" style="display:none;">
-      <button id="drawBtn">Draw Card</button>
-      <button id="discardBtn">Discard</button>
-      <button id="callCABOBtn">Call CABO</button>
-      <button id="game.js"></script>
-</body>
-</html>
+h1, h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
 
+.screen {
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: #1a3a0d;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.container > div {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+input[type="text"] {
+  padding: 12px;
+  border: 2px solid #4a7c2c;
+  border-radius: 5px;
+  background-color: #0f2408;
+  color: white;
+  font-size: 16px;
+}
+
+button {
+  padding: 12px 20px;
+  background-color: #4a7c2c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #5a9c3c;
+}
+
+button:active {
+  background-color: #3a6c1c;
+}
+
+.playersList {
+  background-color: #0f2408;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+.playersList > div {
+  padding: 8px 0;
+  border-bottom: 1px solid #4a7c2c;
+}
+
+.playersList > div:last-child {
+  border-bottom: none;
+}
+
+.turnInfo {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #ffff00;
+}
+
+.gameContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.discardArea {
+  text-align: center;
+  background-color: #0f2408;
+  padding: 15px;
+  border-radius: 5px;
+}
+
+.discardArea > p {
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.card {
+  background-color: #ffffff;
+  color: #2d5016;
+  width: 80px;
+  height: 120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  border: 3px solid #4a7c2c;
+}
+
+.handArea {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cardBtn {
+  width: 70px;
+  height: 100px;
+  font-size: 14px;
+  padding: 0;
+  display-radius: 5px;
+}
+
+.cardBtn:hover {
+  background-color: #e6e6e6;
+}
+
+.buttonArea {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.buttonArea button {
+  width: 100%;
+}
+
+.gameLog {
+  background-color: #0f2408;
+  padding: 15px;
+  border-radius: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+.gameLog > p {
+  margin-bottom: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #4a7c2c;
+}
+
+.gameLog > p:last-child {
+  border-bottom: none;
+}
